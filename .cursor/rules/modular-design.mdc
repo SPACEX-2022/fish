@@ -1,0 +1,21 @@
+---
+description: 
+globs: *.js,*.ts
+alwaysApply: false
+---
+
+# Your rule content
+
+- 项目中的代码必须遵循模块化原则，避免将所有逻辑集中在一个巨型文件中。每个模块应专注于单一职责（如玩家管理、物理引擎、UI 渲染），并通过清晰的接口（如 export/import）与其他模块交互。这样可以提高代码的可读性、可维护性和可测试性。
+- 实例如下：
+
+```
+// src/modules/player.js
+export class Player {
+  move(direction) { /* 移动逻辑 */ }
+}
+
+// src/main.js
+import { Player } from './modules/player.js';
+const player = new Player();
+```

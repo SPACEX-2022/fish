@@ -1,0 +1,14 @@
+---
+description: 
+globs: src/api/*.ts
+alwaysApply: false
+---
+
+- 游戏应优化网络通信以减少延迟。使用 WebSocket（通过 Socket.IO 简化管理）实现实时双向通信，避免不必要的 HTTP 请求。优先使用本地缓存（如 localStorage）存储静态数据，减少服务器负载。
+- 实例：
+```
+// src/network/socket.js
+import { io } from 'socket.io-client';
+const socket = io('wss://game-server.com', { reconnection: true });
+socket.on('update', (data) => { /* 处理更新 */ });
+```

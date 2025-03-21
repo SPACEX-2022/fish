@@ -25,29 +25,39 @@ async function init() {
   
   // 添加logo
   const pixi = PIXI.Sprite.from('dl-logo.png')
-  pixi.scale.set(1.5)
+  pixi.scale.set(2)
   pixi.anchor.set(.5, .5)
   container.addChild(pixi)
   
   // 添加文字
-  const text = "小游戏开发";
+  const text = "游戏工作室";
   const textStyle = new PIXI.TextStyle({
-    fontFamily: 'Arial',
-    fontSize: 36,
+    // 使用科技感字体
+    fontFamily: 'YouYuan, Microsoft YaHei, PingFang SC, sans-serif',
+    fontSize: 70,
     fontWeight: 'bold',
-    fill: ['#ffffff'],
-    stroke: '#4a1850',
-    strokeThickness: 5,
+    // 使用蓝色科技感配色
+    fill: ['#4FC3F7', '#03A9F4', '#0288D1'], // 浅蓝到深蓝渐变
+    fillGradientType: 1,
+    fillGradientStops: [0, 0.5, 1],
+    // 精简描边效果
+    stroke: '#01579B',
+    strokeThickness: 4,
+    // 适度阴影效果
     dropShadow: true,
-    dropShadowColor: '#000000',
+    dropShadowColor: '#000033',
     dropShadowBlur: 4,
     dropShadowAngle: Math.PI / 6,
-    dropShadowDistance: 6,
+    dropShadowDistance: 4,
+    // 适当间距
+    letterSpacing: 4,
+    // 清晰边缘
+    lineJoin: 'round',
   });
   
   // 创建每个字的文本对象
   const textChars = [];
-  let totalWidth = pixi.width + 180; // logo宽度加间距
+  let totalWidth = pixi.width + 230; // logo宽度加间距
   
   for (let i = 0; i < text.length; i++) {
     const char = new PIXI.Text(text[i], textStyle);
@@ -55,7 +65,7 @@ async function init() {
     char.position.x = totalWidth;
     char.alpha = 0; // 初始透明
     
-    totalWidth += char.width + 5; // 字符间距5
+    totalWidth += char.width + 6; // 适当字符间距
     textChars.push(char);
     container.addChild(char);
   }
@@ -82,36 +92,48 @@ async function init() {
     onUpdate: v => pixi.alpha = v
   }))
   
-  // 文字逐个跳动出现
+  // 文字逐个跳动出现，保持灵动效果
   textChars.forEach((char, index) => {
     // 延迟显示每个字符
     setTimeout(() => {
       // 跳动动画
       acts.push(animate({
-        from: { y: -30, alpha: 0 },
+        from: { y: -20, alpha: 0 },
         to: { y: 0, alpha: 1 },
-        duration: 500,
+        duration: 400,
         ease: easeInOut,
         onUpdate: (v) => {
           char.position.y = v.y;
           char.alpha = v.alpha;
         },
         onComplete: () => {
-          // 添加持续的小幅跳动效果
+          // 添加简洁的漂浮动画效果
           acts.push(animate({
             from: 0,
             to: 1,
-            duration: 1500,
+            duration: 1800,
             ease: easeInOut,
             repeat: Infinity,
             repeatType: 'mirror',
             onUpdate: (v) => {
-              char.position.y = Math.sin(v * Math.PI) * 8;
+              // 轻微上下浮动
+              char.position.y = Math.sin(v * Math.PI) * 5;
+              // 轻微的科技感光晕效果
+              // const blurFilter = new PIXI.filters.BlurFilter();
+              // blurFilter.blur = Math.sin(v * Math.PI) * 2;
+              // blurFilter.quality = 3;
+              // char.filters = [blurFilter];
+              // // 动态调整色彩亮度
+              // char.tint = PIXI.utils.rgb2hex([
+              //   0.3 + 0.7 * Math.sin(v * Math.PI * 0.5 + 0.5),
+              //   0.6 + 0.4 * Math.sin(v * Math.PI * 0.5),
+              //   0.8 + 0.2 * Math.sin(v * Math.PI * 0.5 + 0.2)
+              // ]);
             }
           }));
         }
       }));
-    }, 300 * index); // 每个字符间隔300ms出现
+    }, 250 * index); // 较短间隔，更加流畅
   });
 
   await new Promise<any>(resolve => {
