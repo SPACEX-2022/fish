@@ -3,7 +3,7 @@
   "setting": {
     "urlCheck": false
   },
-  "projectname": "dist",
+  "projectname": "pixijs-fish",
   "libVersion": "development",
   "condition": {
     "game": {
