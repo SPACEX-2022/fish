@@ -5,7 +5,8 @@ import { RoomService } from '../room/room.service';
 import { UserService } from '../user/user.service';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../common/services/redis.service';
-import { GameRecord, GameRecordDocument, PlayerEvent, PlayerResult } from './schemas/game-record.schema';
+import { GameRecord, GameRecordDocument } from './schemas/game-record.schema';
+import { GameEvent, PlayerResult } from './dto/game.dto';
 import { RoomStatus } from '../room/schemas/room.schema';
 import { Socket, Server } from 'socket.io';
 import { GameRecordDto, PlayerGameRecordsDto, PlayerResultDto, GameEventWithUserDto } from './dto/game.dto';
@@ -147,30 +148,35 @@ export class GameService {
     const endTime = Date.now();
     const duration = Math.round((endTime - startTime) / 1000);
     
-    // 计算玩家排名
-    const playerResultsList: PlayerResult[] = [...room.players]
-      .sort((a, b) => b.score - a.score)
-      .map((player, index) => {
-        return {
-          userId: new Types.ObjectId(player.userId),
-          nickname: player.nickname,
-          score: player.score,
-          rank: index + 1,
-          events: []  // 初始为空事件列表
-        };
-      });
+    // 计算结果并存储到游戏记录
+    const playerResultsList: PlayerResult[] = room.players.map(player => {
+      return {
+        userId: player.userId,
+        nickname: player.nickname,
+        score: player.score,
+        rank: 0, // 暂时设为0，后面会更新
+        events: [],
+      };
+    });
+    
+    // 计算排名
+    playerResultsList.sort((a, b) => b.score - a.score);
+    playerResultsList.forEach((player, index) => {
+      player.rank = index + 1;
+    });
     
     // 确定获胜者
     const winner = playerResultsList[0];
     
     // 创建游戏记录
     const gameRecord = new this.gameRecordModel({
-      roomId: new Types.ObjectId(roomId),
+      roomId: roomId,
+      roomCode: room.roomCode,
       startTime: new Date(startTime),
       endTime: new Date(endTime),
       duration,
       players: playerResultsList,
-      winner: winner?.userId,
+      winner
     });
     
     const savedRecord = await gameRecord.save();

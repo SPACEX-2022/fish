@@ -36,16 +36,16 @@ export class Room {
   @Prop({ required: true, enum: RoomStatus, default: RoomStatus.WAITING })
   status: string;
 
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
-  hostId: User;
+  @Prop({ required: true })
+  hostId: string;
 
   @Prop({ type: [Object], default: [] })
   players: PlayerInfo[];
 
-  @Prop({ default: null })
+  @Prop({ type: Date, default: null, required: false })
   startTime: Date | null;
 
-  @Prop({ default: null })
+  @Prop({ type: Date, default: null, required: false })
   endTime: Date | null;
 
   @Prop({ default: 0 })
@@ -53,6 +53,12 @@ export class Room {
 
   @Prop({ default: Date.now, expires: '1h' })
   expiresAt: Date;
+
+  @Prop()
+  createdAt: Date;
+
+  @Prop()
+  updatedAt: Date;
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room); 

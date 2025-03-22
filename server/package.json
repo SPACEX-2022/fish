@@ -31,9 +31,10 @@
     "@nestjs/platform-socket.io": "^10.0.0",
     "@nestjs/swagger": "^7.0.0",
     "@nestjs/websockets": "^10.0.0",
+    "@types/mongoose": "^5.11.97",
     "bcrypt": "^5.1.0",
     "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.0",
+    "class-validator": "^0.14.1",
     "ioredis": "^5.3.2",
     "mongoose": "^7.0.4",
     "passport": "^0.6.0",
@@ -43,7 +44,8 @@
     "rimraf": "^5.0.1",
     "rxjs": "^7.8.1",
     "socket.io": "^4.6.1",
-    "swagger-ui-express": "^5.0.0"
+    "swagger-ui-express": "^5.0.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

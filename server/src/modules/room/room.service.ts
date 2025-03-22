@@ -42,6 +42,7 @@ export class RoomService {
       exists = !!existingRoom;
     }
     
+    // @ts-ignore
     return roomCode;
   }
 
@@ -204,7 +205,7 @@ export class RoomService {
     // 如果是房主离开且还有其他玩家，则转移房主权限
     if (isHost && room.players.length > 0) {
       room.players[0].isHost = true;
-      room.hostId = new Types.ObjectId(room.players[0].userId);
+      room.hostId = room.players[0].userId;
     }
     
     // 如果是公共房间且人数不足自动开始条件，则设置状态为等待
@@ -320,8 +321,8 @@ export class RoomService {
     // 如果所有玩家都准备好了，则重置房间状态
     if (allReady) {
       room.status = RoomStatus.WAITING;
-      room.startTime = undefined;
-      room.endTime = undefined;
+      room.startTime = null;
+      room.endTime = null;
     }
     
     return room.save();

@@ -53,7 +53,10 @@ export class UserService {
     ).exec();
   }
   
-  async toUserDto(user: UserDocument): Promise<UserDto> {
+  /**
+   * 将用户文档转换为UserDto
+   */
+  toUserDto(user: User | UserDocument): UserDto {
     return {
       id: user._id.toString(),
       openId: user.openId,
@@ -65,11 +68,14 @@ export class UserService {
     };
   }
   
-  async toProfileDto(user: UserDocument): Promise<UserProfileDto> {
+  /**
+   * 将用户文档转换为ProfileDto
+   */
+  toProfileDto(user: User | UserDocument): UserProfileDto {
     const winRate = user.gamesPlayed > 0 
       ? Math.round((user.wins / user.gamesPlayed) * 100)
       : 0;
-    
+      
     return {
       id: user._id.toString(),
       nickname: user.nickname,
@@ -77,7 +83,7 @@ export class UserService {
       totalScore: user.totalScore,
       gamesPlayed: user.gamesPlayed,
       wins: user.wins,
-      winRate,
+      winRate
     };
   }
 } 

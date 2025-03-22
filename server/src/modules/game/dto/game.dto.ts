@@ -76,8 +76,8 @@ export class GameRecordDto {
   id: string;
   roomId: string;
   roomCode: string;
-  startTime: Date;
-  endTime: Date;
+  startTime: Date | null;
+  endTime: Date | null;
   duration: number;
   players: PlayerResultDto[];
   winner: PlayerResultDto;
