@@ -1,0 +1,60 @@
+{
+    "frames": {
+        "num0.png": {
+            "frame": {"x":0, "y":0, "w":38, "h":44},
+            "spriteSourceSize": {"x":0,"y":0,"w":38,"h":44},
+            "sourceSize": {"w":38,"h":44}
+        },
+        "num1.png": {
+            "frame": {"x":38, "y":0, "w":38, "h":44},
+            "spriteSourceSize": {"x":0,"y":0,"w":38,"h":44},
+            "sourceSize": {"w":38,"h":44}
+        },
+        "num2.png": {
+            "frame": {"x":76, "y":0, "w":38, "h":44},
+            "spriteSourceSize": {"x":0,"y":0,"w":38,"h":44},
+            "sourceSize": {"w":38,"h":44}
+        },
+        "num3.png": {
+            "frame": {"x":114, "y":0, "w":38, "h":44},
+            "spriteSourceSize": {"x":0,"y":0,"w":38,"h":44},
+            "sourceSize": {"w":38,"h":44}
+        },
+        "num4.png": {
+            "frame": {"x":152, "y":0, "w":38, "h":44},
+            "spriteSourceSize": {"x":0,"y":0,"w":38,"h":44},
+            "sourceSize": {"w":38,"h":44}
+        },
+        "num5.png": {
+            "frame": {"x":190, "y":0, "w":38, "h":44},
+            "spriteSourceSize": {"x":0,"y":0,"w":38,"h":44},
+            "sourceSize": {"w":38,"h":44}
+        },  
+        "num6.png": {
+            "frame": {"x":228, "y":0, "w":38, "h":44},
+            "spriteSourceSize": {"x":0,"y":0,"w":38,"h":44},
+            "sourceSize": {"w":38,"h":44}
+        },
+        "num7.png": {
+            "frame": {"x":266, "y":0, "w":38, "h":44},
+            "spriteSourceSize": {"x":0,"y":0,"w":38,"h":44},
+            "sourceSize": {"w":38,"h":44}
+        },
+        "num8.png": {
+            "frame": {"x":304, "y":0, "w":38, "h":44},
+            "spriteSourceSize": {"x":0,"y":0,"w":38,"h":44},
+            "sourceSize": {"w":38,"h":44}
+        },
+        "num9.png": {
+            "frame": {"x":342, "y":0, "w":38, "h":44},
+            "spriteSourceSize": {"x":0,"y":0,"w":38,"h":44},
+            "sourceSize": {"w":38,"h":44}
+        }
+    },
+    
+    "meta": {
+        "image": "assets/images/score.png",
+        "size": {"w": 380, "h": 44},
+        "scale": "1"
+    }
+}

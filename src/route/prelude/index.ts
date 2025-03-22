@@ -139,6 +139,7 @@ async function init() {
   await new Promise<any>(resolve => {
     loader
       .add('misc.json')
+      .add('score.json')
       .load(resolve)
   })
 

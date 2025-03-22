@@ -40,7 +40,7 @@ class Bullet {
     this.sprite.anchor.set(0.5); // 中心点作为锚点
     this.sprite.position.set(x, y);
     this.sprite.rotation = rotation;
-    this.sprite.scale.set(size);
+    this.sprite.scale.set(size * 0.7);
     
     // 计算实际方向（从炮口方向）
     const direction = rotation - Math.PI / 2; // 旋转角度转换为方向角度
@@ -52,7 +52,7 @@ class Bullet {
     
     // 子弹属性
     this.power = power; // 威力/伤害
-    this.size = size; // 大小
+    this.size = size * 0.7; // 缩小的大小值也保存
     this.explosionRadius = explosionRadius; // 爆炸半径（用于范围伤害）
     this.explosionEffect = explosionEffect; // 爆炸特效类型
     this.type = type; // 子弹类型

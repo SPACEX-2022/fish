@@ -27,8 +27,8 @@ class Fish {
     this.size = options.size || 0.5;
     this.sprite.scale.set(this.size);
     
-    // 血量属性
-    this.maxHealth = options.health || 1;
+    // 血量属性 - 将默认值和传入值都提升100%
+    this.maxHealth = options.health ? options.health * 2 : 2; // 默认值从1提升到2，其他值翻倍
     this.health = this.maxHealth;
     
     // 移动属性
