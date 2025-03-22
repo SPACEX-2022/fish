@@ -53,12 +53,15 @@ function init() {
   // 初始化玩家
   player = new Player(null)
   
+  // 初始化炮台并添加到root容器
+  player.initBattery(root)
+  
   // 添加触摸/点击事件
   setupTouchEvents()
 
   ticker.add(() => {
     // 更新子弹位置
-    player.updateBullets();
+    player.updateBullets(null, root);
     
     // 检测子弹与鱼的碰撞
     checkCollisions();
@@ -128,14 +131,14 @@ function checkCollisions() {
         console.log('碰撞检测：子弹与鱼');
         
         // 显示爆炸特效
-        player.showExplosion(bullet.x, bullet.y);
+        player.showExplosion(bullet.x, bullet.y, root);
         
         // 设置鱼的击中状态
         fish.hit = true;
         fish.hitEffect = 0;
         
         // 移除子弹
-        stage.removeChild(bullet);
+        root.removeChild(bullet);
         player.bullets.splice(i, 1);
         
         // 一个子弹只能击中一条鱼
@@ -154,7 +157,7 @@ function setupTouchEvents() {
     wx.onTouchStart((event: any) => {
       const touch = event.touches[0]
       console.log('触摸开始:', touch.clientX, touch.clientY)
-      player.shootBullet(touch.clientX, touch.clientY)
+      player.shootBullet(touch.clientX, touch.clientY, root)
     })
   } catch (error) {
     console.error('设置触摸/点击事件出错:', error)
