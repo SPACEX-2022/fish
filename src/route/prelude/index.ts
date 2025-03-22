@@ -42,13 +42,9 @@ async function init() {
     fillGradientStops: [0, 0.5, 1],
     // 精简描边效果
     stroke: '#01579B',
-    strokeThickness: 4,
-    // 适度阴影效果
-    dropShadow: true,
-    dropShadowColor: '#000033',
-    dropShadowBlur: 4,
-    dropShadowAngle: Math.PI / 6,
-    dropShadowDistance: 4,
+    strokeThickness: 6,
+    // 移除阴影效果，增强描边
+    dropShadow: false,
     // 适当间距
     letterSpacing: 4,
     // 清晰边缘

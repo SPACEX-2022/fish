@@ -627,6 +627,21 @@ declare module wx {
 
   function loadFont(path: string): string
 
+  // type	string		是	震动强度类型，有效值为：heavy、medium、light
+  // 设备振动API
+  function vibrateShort(opts?: {
+    type?: 'heavy' | 'medium' | 'light'
+    success?: () => void
+    fail?: () => void
+    complete?: () => void
+  }): void
+
+  function vibrateLong(opts?: {
+    success?: () => void
+    fail?: () => void
+    complete?: () => void
+  }): void
+
   type Callback<T> = T & Omit<Partial<{
     fail: (...args: any[]) => void
     success: (...args: any[]) => void

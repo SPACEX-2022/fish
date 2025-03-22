@@ -172,9 +172,23 @@ function startSinglePlayerGame() {
             audioManager.playEffect('ink', 'assets/mp3/sfx_ink.mp3');
             // 应用墨水滤镜效果
             applyInkEffect();
+            // 触发长振动
+            try {
+              wx.vibrateLong();
+              console.log('触发长振动');
+            } catch (error) {
+              console.error('触发长振动失败:', error);
+            }
           } else {
             // 普通鱼播放金币音效
             audioManager.playEffect('coin', 'assets/mp3/coin.mp3');
+            // 触发短震动
+            try {
+              wx.vibrateShort();
+              console.log('触发短振动');
+            } catch (error) {
+              console.error('触发短振动失败:', error);
+            }
           }
           
           // 确保fish.sprite存在，否则使用默认位置
@@ -229,7 +243,7 @@ function showFloatingScore(x: number, y: number, score: number) {
     fill: 0xFFFF00,
     fontWeight: 'bold',
     stroke: 0x000000,
-    strokeThickness: 4,
+    strokeThickness: 5,
     letterSpacing: 1
   });
   plusText.position.x = 0;
@@ -256,7 +270,7 @@ function showFloatingScore(x: number, y: number, score: number) {
           fill: 0xFFFF00,
           fontWeight: 'bold',
           stroke: 0x000000,
-          strokeThickness: 4,
+          strokeThickness: 5,
           letterSpacing: 1
         });
         digitText.position.x = totalWidth;
@@ -279,7 +293,7 @@ function showFloatingScore(x: number, y: number, score: number) {
       fill: 0xFFFF00,
       fontWeight: 'bold',
       stroke: 0x000000,
-      strokeThickness: 4,
+      strokeThickness: 5,
       letterSpacing: 1
     });
     scoreContainer.removeChildren();

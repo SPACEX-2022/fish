@@ -49,11 +49,8 @@ class HUD {
       fill: 0xFFFFFF,
       fontWeight: 'bold',
       stroke: 0x000000,
-      strokeThickness: 4,
-      dropShadow: true,
-      dropShadowColor: 0x000000,
-      dropShadowBlur: 4,
-      dropShadowDistance: 2,
+      strokeThickness: 5,
+      dropShadow: false,
       letterSpacing: 1
     });
     
@@ -115,11 +112,8 @@ class HUD {
       fill: 0xFF8C00,
       fontWeight: 'bold',
       stroke: 0x000000,
-      strokeThickness: 5,
-      dropShadow: true,
-      dropShadowColor: 0x000000,
-      dropShadowBlur: 5,
-      dropShadowDistance: 2,
+      strokeThickness: 6,
+      dropShadow: false,
       letterSpacing: 1
     });
     

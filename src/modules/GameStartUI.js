@@ -102,10 +102,10 @@ class GameStartUI {
       fill: 0xFFFFFF,
       align: 'center',
       fontWeight: 'bold',
-      dropShadow: true,
-      dropShadowColor: '#000000',
-      dropShadowBlur: 4,
-      dropShadowDistance: 2
+      stroke: 0x000000,
+      strokeThickness: 4,
+      dropShadow: false,
+      letterSpacing: 1
     });
     buttonText.anchor.set(0.5);
     
@@ -169,17 +169,20 @@ class GameStartUI {
    */
   onMultiPlayerClick() {
     console.log('多人模式开发中');
-    // 创建提示文本
+    // 显示"开发中"提示
+    const noticeContainer = new PIXI.Container();
+    
+    // 通知文本
     const noticeText = new PIXI.Text('正在开发中，敬请期待!', {
-      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontFamily: 'YouYuan, Microsoft YaHei, PingFang SC, sans-serif',
       fontSize: 24,
       fill: 0xFFFFFF,
       align: 'center',
       fontWeight: 'bold',
-      dropShadow: true,
-      dropShadowColor: '#000000',
-      dropShadowBlur: 4,
-      dropShadowDistance: 2
+      stroke: 0x000000,
+      strokeThickness: 4,
+      dropShadow: false,
+      letterSpacing: 1
     });
     noticeText.anchor.set(0.5);
     noticeText.position.set(screen.width / 2, screen.height / 2 - 100);
