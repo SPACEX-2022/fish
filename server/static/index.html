@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多人钓鱼游戏服务器</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1 {
+            color: #0066cc;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .card {
+            background: #f9f9f9;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .status-item {
+            background: #e9f5ff;
+            padding: 10px;
+            border-radius: 4px;
+            flex: 1;
+            margin: 0 5px;
+            text-align: center;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.8em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>多人钓鱼游戏服务器</h1>
+    
+    <div class="card">
+        <h2>服务器状态</h2>
+        <p>这是多人钓鱼游戏的服务器静态资源目录。</p>
+        <p>如果您看到这个页面，说明静态文件访问功能正常工作。</p>
+        
+        <div class="status">
+            <div class="status-item">
+                <h3>API接口</h3>
+                <p><a href="/api/docs">查看API文档</a></p>
+            </div>
+            <div class="status-item">
+                <h3>静态资源</h3>
+                <p>访问路径: /static/*</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>游戏介绍</h2>
+        <p>多人钓鱼游戏是一款模拟钓鱼体验的微信小游戏，支持多人同时在线对战。</p>
+        <p>玩家可以通过创建房间邀请好友，也可以加入公共房间与其他玩家一起游戏。</p>
+    </div>
+    
+    <footer class="footer">
+        <p>© 2023 多人钓鱼游戏 - 服务器版本 1.0</p>
+        <p>服务器运行状态正常</p>
+    </footer>
+</body>
+</html> 
