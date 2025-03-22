@@ -176,15 +176,38 @@ class Cannon {
     // 获取炮口位置
     const bulletPos = this.getBulletStartPosition();
     
-    // 创建子弹
-    const bullet = new Bullet({
+    // 设置子弹基础配置
+    const bulletConfig = {
       x: bulletPos.x,
       y: bulletPos.y,
       rotation: bulletPos.rotation,
       type: this.bulletType,
-      power: this.power,
-      ...this.bulletConfig
-    });
+      power: this.power
+    };
+    
+    // 确保子弹配置中包含爆炸特效类型
+    // 如果没有显式指定子弹爆炸特效，则根据子弹类型设置默认值
+    if (this.bulletConfig) {
+      Object.assign(bulletConfig, this.bulletConfig);
+      
+      // 确保子弹类型与爆炸特效类型匹配
+      if (!bulletConfig.explosionEffect) {
+        // 根据子弹类型设置对应的爆炸特效
+        switch (this.bulletType) {
+          case 'fire':
+            bulletConfig.explosionEffect = 'fire';
+            break;
+          case 'ice':
+            bulletConfig.explosionEffect = 'ice';
+            break;
+          default:
+            bulletConfig.explosionEffect = 'default';
+        }
+      }
+    }
+    
+    // 创建子弹
+    const bullet = new Bullet(bulletConfig);
     
     // 添加到容器
     bullet.addToContainer(container);

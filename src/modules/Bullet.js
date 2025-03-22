@@ -61,6 +61,7 @@ class Bullet {
     this.isActive = true; // 子弹是否处于活跃状态
     this.hasExploded = false; // 子弹是否已爆炸
     this.isExploding = false; // 是否正在播放爆炸动画
+    this.collisionPoint = null; // 碰撞位置，用于定位爆炸效果
     
     // 爆炸特效配置，可根据类型设置不同参数
     this.explosionConfig = {
@@ -124,13 +125,28 @@ class Bullet {
   }
   
   /**
+   * 设置碰撞点（用于爆炸位置）
+   * @param {number} x - 碰撞点x坐标
+   * @param {number} y - 碰撞点y坐标
+   */
+  setCollisionPoint(x, y) {
+    this.collisionPoint = { x, y };
+  }
+  
+  /**
    * 触发子弹爆炸效果
    * @param {PIXI.Container} container - 添加爆炸效果的容器
+   * @param {Object} collisionPoint - 碰撞点坐标，优先使用
    * @returns {Object} - 返回爆炸信息，包含范围和伤害
    */
-  explode(container) {
+  explode(container, collisionPoint = null) {
     if (this.hasExploded || !container) {
       return null;
+    }
+    
+    // 如果提供了碰撞点，则更新碰撞位置
+    if (collisionPoint) {
+      this.setCollisionPoint(collisionPoint.x, collisionPoint.y);
     }
     
     // 标记子弹状态
@@ -143,8 +159,8 @@ class Bullet {
     
     // 返回爆炸信息，用于后续的范围伤害计算
     return {
-      x: this.sprite.position.x,
-      y: this.sprite.position.y,
+      x: this.collisionPoint ? this.collisionPoint.x : this.sprite.position.x,
+      y: this.collisionPoint ? this.collisionPoint.y : this.sprite.position.y,
       radius: this.explosionRadius,
       power: this.power,
       effectType: this.explosionEffect
@@ -159,16 +175,20 @@ class Bullet {
     // 获取爆炸配置
     const config = this.explosionConfig[this.explosionEffect] || this.explosionConfig.default;
     
+    // 确定爆炸位置（优先使用碰撞点，如果没有则使用子弹当前位置）
+    const explosionX = this.collisionPoint ? this.collisionPoint.x : this.sprite.position.x;
+    const explosionY = this.collisionPoint ? this.collisionPoint.y : this.sprite.position.y;
+    
     // 创建爆炸精灵
     const explosion = PIXI.Sprite.from(config.texture);
     explosion.anchor.set(0.5);
-    explosion.position.set(this.sprite.position.x, this.sprite.position.y);
+    explosion.position.set(0, 0); // 设置为本地坐标系原点
     explosion.scale.set(config.startScale * this.size); // 根据子弹大小缩放爆炸效果
     explosion.alpha = config.startAlpha;
     
-    // 创建爆炸容器
+    // 创建爆炸容器，并设置在碰撞位置
     this.explosionContainer = new PIXI.Container();
-    this.explosionContainer.position.set(this.sprite.position.x, this.sprite.position.y);
+    this.explosionContainer.position.set(explosionX, explosionY);
     this.explosionContainer.addChild(explosion);
     
     // 添加到游戏容器
@@ -241,8 +261,12 @@ class Bullet {
    * @returns {boolean} - 是否在爆炸范围内
    */
   isPointInExplosionRadius(x, y) {
-    const dx = x - this.sprite.position.x;
-    const dy = y - this.sprite.position.y;
+    // 使用碰撞点或子弹位置作为爆炸中心
+    const centerX = this.collisionPoint ? this.collisionPoint.x : this.sprite.position.x;
+    const centerY = this.collisionPoint ? this.collisionPoint.y : this.sprite.position.y;
+    
+    const dx = x - centerX;
+    const dy = y - centerY;
     const distanceSquared = dx * dx + dy * dy;
     
     return distanceSquared <= this.explosionRadius * this.explosionRadius;

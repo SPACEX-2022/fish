@@ -187,8 +187,17 @@ class BatterySystem {
           
           console.log('碰撞检测：子弹与鱼');
           
-          // 触发子弹爆炸
-          const explosionInfo = bullet.explode(container);
+          // 计算碰撞点位置（两个边界框的交点中心）
+          const intersectX = Math.max(bulletBounds.x, fishBounds.x) + 
+                            (Math.min(bulletBounds.x + bulletBounds.width, fishBounds.x + fishBounds.width) - 
+                             Math.max(bulletBounds.x, fishBounds.x)) / 2;
+          
+          const intersectY = Math.max(bulletBounds.y, fishBounds.y) + 
+                            (Math.min(bulletBounds.y + bulletBounds.height, fishBounds.y + fishBounds.height) - 
+                             Math.max(bulletBounds.y, fishBounds.y)) / 2;
+          
+          // 触发子弹爆炸，传入碰撞位置
+          const explosionInfo = bullet.explode(container, { x: intersectX, y: intersectY });
           
           // 记录碰撞
           hasCollided = true;
