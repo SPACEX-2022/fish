@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心跳连接测试</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1 {
+            color: #0066cc;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .card {
+            background: #f9f9f9;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .log-area {
+            height: 200px;
+            overflow-y: auto;
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin-top: 15px;
+        }
+        .log-area p {
+            margin: 2px 0;
+        }
+        .log-area .error {
+            color: red;
+        }
+        .log-area .success {
+            color: green;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0055aa;
+        }
+        .status-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e9f5ff;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>心跳连接测试</h1>
+    
+    <div class="card">
+        <h2>连接信息</h2>
+        <div>
+            <label for="serverUrl">服务器地址:</label>
+            <input type="text" id="serverUrl" value="http://localhost:3000" style="width: 200px;">
+        </div>
+        <div style="margin-top: 10px;">
+            <label for="token">认证令牌 (JWT):</label>
+            <input type="text" id="token" style="width: 60%;">
+        </div>
+        <div style="margin-top: 15px;">
+            <button id="connectBtn">连接</button>
+            <button id="disconnectBtn" disabled>断开</button>
+        </div>
+        
+        <div class="status-info" id="connectionStatus">
+            状态: 未连接
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>心跳控制</h2>
+        <div>
+            <button id="startHeartbeat" disabled>开始心跳</button>
+            <button id="stopHeartbeat" disabled>停止心跳</button>
+            <button id="singleHeartbeat" disabled>发送一次心跳</button>
+            <button id="checkStatus" disabled>检查状态</button>
+        </div>
+        <div class="status-info" id="heartbeatStatus">
+            心跳状态: 未开始
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>日志</h2>
+        <div class="log-area" id="logArea"></div>
+    </div>
+    
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <script>
+        // DOM元素
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const startHeartbeatBtn = document.getElementById('startHeartbeat');
+        const stopHeartbeatBtn = document.getElementById('stopHeartbeat');
+        const singleHeartbeatBtn = document.getElementById('singleHeartbeat');
+        const checkStatusBtn = document.getElementById('checkStatus');
+        const serverUrlInput = document.getElementById('serverUrl');
+        const tokenInput = document.getElementById('token');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const heartbeatStatus = document.getElementById('heartbeatStatus');
+        const logArea = document.getElementById('logArea');
+        
+        // 变量
+        let socket = null;
+        let heartbeatInterval = null;
+        const HEARTBEAT_INTERVAL = 15000; // 15秒
+        
+        // 记录日志
+        function log(message, type = 'info') {
+            const p = document.createElement('p');
+            p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            if (type === 'error') p.className = 'error';
+            if (type === 'success') p.className = 'success';
+            logArea.appendChild(p);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+        
+        // 连接到服务器
+        connectBtn.addEventListener('click', function() {
+            const serverUrl = serverUrlInput.value.trim();
+            const token = tokenInput.value.trim();
+            
+            if (!serverUrl) {
+                log('请输入服务器地址', 'error');
+                return;
+            }
+            
+            if (!token) {
+                log('请输入认证令牌', 'error');
+                return;
+            }
+            
+            try {
+                // 创建Socket.IO连接
+                socket = io(`${serverUrl}/heartbeat`, {
+                    auth: {
+                        token
+                    },
+                    transports: ['websocket'],
+                    reconnection: true,
+                    reconnectionAttempts: 5,
+                    reconnectionDelay: 1000
+                });
+                
+                // 连接事件
+                socket.on('connect', () => {
+                    log('已连接到服务器', 'success');
+                    connectionStatus.textContent = `状态: 已连接 (ID: ${socket.id})`;
+                    
+                    // 启用按钮
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    startHeartbeatBtn.disabled = false;
+                    singleHeartbeatBtn.disabled = false;
+                    checkStatusBtn.disabled = false;
+                });
+                
+                // 连接错误
+                socket.on('connect_error', (error) => {
+                    log(`连接错误: ${error.message}`, 'error');
+                    connectionStatus.textContent = `状态: 连接失败 - ${error.message}`;
+                });
+                
+                // 断开连接
+                socket.on('disconnect', (reason) => {
+                    log(`连接断开: ${reason}`);
+                    connectionStatus.textContent = `状态: 已断开 - ${reason}`;
+                    stopHeartbeat();
+                    
+                    // 禁用按钮
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    startHeartbeatBtn.disabled = true;
+                    stopHeartbeatBtn.disabled = true;
+                    singleHeartbeatBtn.disabled = true;
+                    checkStatusBtn.disabled = true;
+                });
+                
+                // 心跳响应
+                socket.on('heartbeat', (data) => {
+                    log(`收到心跳响应: ${JSON.stringify(data)}`, 'success');
+                });
+                
+                // 状态响应
+                socket.on('status', (data) => {
+                    log(`收到状态响应: ${JSON.stringify(data)}`);
+                });
+                
+                // 错误信息
+                socket.on('error', (data) => {
+                    log(`服务器错误: ${data.message}`, 'error');
+                });
+                
+                // 连接成功事件
+                socket.on('connection', (data) => {
+                    log(`连接事件: ${JSON.stringify(data)}`);
+                });
+                
+                log('正在连接到服务器...');
+            } catch (error) {
+                log(`创建连接失败: ${error.message}`, 'error');
+            }
+        });
+        
+        // 断开连接
+        disconnectBtn.addEventListener('click', function() {
+            if (socket) {
+                stopHeartbeat();
+                socket.disconnect();
+                log('已主动断开连接');
+            }
+        });
+        
+        // 开始心跳
+        startHeartbeatBtn.addEventListener('click', function() {
+            if (!socket || !socket.connected) {
+                log('未连接到服务器', 'error');
+                return;
+            }
+            
+            // 如果已经存在心跳，先停止
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+            }
+            
+            // 设置定时心跳
+            heartbeatInterval = setInterval(() => {
+                sendHeartbeat();
+            }, HEARTBEAT_INTERVAL);
+            
+            // 立即发送一次
+            sendHeartbeat();
+            
+            heartbeatStatus.textContent = `心跳状态: 已开始 (间隔: ${HEARTBEAT_INTERVAL/1000}秒)`;
+            log(`已开始心跳检测，间隔: ${HEARTBEAT_INTERVAL/1000}秒`);
+            
+            startHeartbeatBtn.disabled = true;
+            stopHeartbeatBtn.disabled = false;
+        });
+        
+        // 停止心跳
+        stopHeartbeatBtn.addEventListener('click', function() {
+            stopHeartbeat();
+        });
+        
+        // 发送单次心跳
+        singleHeartbeatBtn.addEventListener('click', function() {
+            sendHeartbeat();
+        });
+        
+        // 检查状态
+        checkStatusBtn.addEventListener('click', function() {
+            if (!socket || !socket.connected) {
+                log('未连接到服务器', 'error');
+                return;
+            }
+            
+            socket.emit('status');
+            log('已发送状态查询请求');
+        });
+        
+        // 发送心跳
+        function sendHeartbeat() {
+            if (!socket || !socket.connected) {
+                log('心跳失败: 未连接到服务器', 'error');
+                stopHeartbeat();
+                return;
+            }
+            
+            socket.emit('heartbeat');
+            log('已发送心跳');
+        }
+        
+        // 停止心跳
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+                heartbeatStatus.textContent = '心跳状态: 已停止';
+                log('已停止心跳');
+                
+                startHeartbeatBtn.disabled = !socket || !socket.connected;
+                stopHeartbeatBtn.disabled = true;
+            }
+        }
+    </script>
+</body>
+</html> 

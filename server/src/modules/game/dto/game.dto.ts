@@ -1,4 +1,5 @@
 import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export enum GameEventType {
   FISH_CAUGHT = 'fish_caught',
@@ -47,12 +48,10 @@ export interface GameEventWithUser extends GameEvent {
 }
 
 export class GameEventWithUserDto extends GameEventDto implements GameEventWithUser {
-  @IsString()
-  @IsNotEmpty()
+  @ApiProperty({ description: '发送事件的用户ID' })
   userId: string;
-
-  @IsString()
-  @IsNotEmpty()
+  
+  @ApiProperty({ description: '用户昵称' })
   nickname: string;
 }
 

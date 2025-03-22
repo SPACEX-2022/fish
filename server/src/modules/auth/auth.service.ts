@@ -1,16 +1,20 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { UserService } from '../user/user.service';
 import { WxService } from './services/wx.service';
 import { LoginResponseDto, WxLoginDto } from './dto/auth.dto';
 import { UserDocument } from '../user/schemas/user.schema';
+import { HeartbeatService } from '../common/services/heartbeat.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private userService: UserService,
-    private jwtService: JwtService,
-    private wxService: WxService,
+    private readonly userService: UserService,
+    private readonly jwtService: JwtService,
+    private readonly wxService: WxService,
+    private readonly configService: ConfigService,
+    private readonly heartbeatService: HeartbeatService,
   ) {}
 
   async wxLogin(wxLoginDto: WxLoginDto): Promise<LoginResponseDto> {
@@ -19,6 +23,7 @@ export class AuthService {
 
     // 查找用户，不存在则创建
     let user = await this.userService.findByOpenId(openid);
+
     if (!user) {
       user = await this.userService.create({
         openId: openid,
@@ -42,24 +47,29 @@ export class AuthService {
       }
     }
 
-    // 更新登录时间
-    await this.userService.updateLoginTime((user as UserDocument)._id.toString());
-
     // 生成JWT令牌
     const payload = {
-      userId: (user as UserDocument)._id.toString(),
+      sub: (user as UserDocument)._id.toString(),
       openId: user.openId,
       nickname: user.nickname,
     };
     const token = this.jwtService.sign(payload);
 
+    // 登录时初始化心跳记录
+    await this.heartbeatService.recordHeartbeat(
+      (user as UserDocument)._id.toString(), 
+      'auth-login'  // 使用特殊标识，表示这是登录时创建的心跳
+    );
+
+    const dto = this.userService.toUserDto(user as UserDocument);
+
     return {
       token,
-      user: {
-        id: (user as UserDocument)._id.toString(),
-        nickname: user.nickname,
-        avatarUrl: user.avatarUrl,
-      },
+      user: dto,
+      connectionStatus: {
+        isConnected: true,
+        lastSeen: Date.now()
+      }
     };
   }
 } 

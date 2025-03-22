@@ -155,13 +155,36 @@ declare module wx {
   function setStorage(opts: {
     key: string
     data: any
+    success?: () => void
+    fail?: () => void
+    complete?: () => void
   }): Promise<void>
+  function setStorageSync(key: string, data: any): void
 
   function getStorage<T>(opts: {
     key: string
+    success?: (res: {data: T}) => void
+    fail?: () => void
+    complete?: () => void
   }): Promise<{data: T}>
+  function getStorageSync<T>(key: string): T
 
-  function downloadFile(opts: {
+  function removeStorage(opts: {
+    key: string
+    success?: () => void
+    fail?: () => void
+    complete?: () => void
+  }): Promise<void>
+  function removeStorageSync(key: string): void
+
+  function clearStorage(opts: {
+    success?: () => void
+    fail?: () => void
+    complete?: () => void
+  }): Promise<void>
+  function clearStorageSync(): void
+
+  function clearStorage(opts: {
     url: string
     header?: Record<string, any>
     timeout?: number
@@ -171,7 +194,106 @@ declare module wx {
     fail?: () => void
   })
 
+  function uploadFile(opts: {
+    url: string
+    filePath: string
+    name: string
+    header?: Record<string, any>
+    formData?: Record<string, any>
+    success?: (res: {data: string, statusCode: number}) => void
+    fail?: (error: any) => void
+    complete?: () => void
+  }): void
+
   function onWindowResize(cb: (res: {windowWidth: number, windowHeight: number}) => void): void
+
+  function request(opts: {
+    url: string 
+    data?: string | object | ArrayBuffer
+    header?: Record<string, any>
+    timeout?: number
+    method?: 'OPTIONS' | 'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE' | 'TRACE' | 'CONNECT' | 'PATCH'
+    dataType?: 'json' | string
+    responseType?: 'text' | 'arraybuffer'
+    success?: (res: any) => void
+    fail?: (err: any) => void
+    complete?: (res: any) => void
+  })
+
+  function connectSocket(opts: {
+    url: string
+    header?: Record<string, any>
+    protocols?: string[]
+    tcpNoDelay?: boolean
+    perMessageDeflate?: boolean
+    timeout?: number
+    forceCellularNetwork?: boolean
+    success?: (res: any) => void
+    fail?: () => void
+    complete?: () => void
+  }): SocketTask
+
+  interface SocketTask {
+    send(opts: {
+      data: string | ArrayBuffer
+      success?: () => void
+      fail?: () => void
+      complete?: () => void
+    }): void
+
+    close(opts: {
+      code?: number
+      reason?: string
+      success?: () => void
+      fail?: () => void
+      complete?: () => void
+    }): void
+
+    /**
+     * header	object	连接成功的 HTTP 响应 Header	2.0.0
+     * profile	Object	网络请求过程中一些调试信息	2.10.4
+     */
+    onOpen(cb: (res: { header: Record<string, any>, profile: Record<string, any> }) => void): void
+
+    /**
+     * code	number	一个数字值表示关闭连接的状态号，表示连接被关闭的原因。
+     * reason	string	一个可读的字符串，表示连接被关闭的原因。
+     */
+    onClose(cb: (res: { code: number, reason: string }) => void): void
+
+    /**
+     * errMsg	string	错误信息
+     */
+    onError(cb: (res: { errMsg: string }) => void): void
+
+    /**
+     * data	string/ArrayBuffer	服务器返回的消息
+     */
+    onMessage(cb: (res: { data: string | ArrayBuffer }) => void): void
+  }
+
+  function closeSocket(opts: {
+    code?: number
+    reason?: string
+    success?: () => void
+    fail?: () => void
+    complete?: () => void
+  })  
+
+  function sendSocketMessage(opts: {
+    data: string | ArrayBuffer
+    success?: () => void
+    fail?: () => void
+    complete?: () => void
+  })
+
+  function onSocketMessage(cb: (res: any) => void): void
+
+  function onSocketOpen(cb: () => void): void
+
+  function onSocketClose(cb: () => void): void
+
+  function onSocketError(cb: () => void): void
 
   interface Touch {
     identifier: number

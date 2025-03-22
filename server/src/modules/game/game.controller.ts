@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Req } from '@nestjs/common';
 import { GameService } from './game.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
@@ -11,8 +11,8 @@ export class GameController {
 
   @UseGuards(JwtAuthGuard)
   @Get('records')
-  async getMyGameRecords(@GetUser() user: JwtPayload): Promise<PlayerGameRecordsDto> {
-    return this.gameService.getUserGameRecords(user.userId);
+  async getMyGameRecords(@Req() req) {
+    return this.gameService.getUserGameRecords(req.user.sub);
   }
 
   @UseGuards(JwtAuthGuard)

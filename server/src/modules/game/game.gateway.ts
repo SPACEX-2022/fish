@@ -18,9 +18,16 @@ import { WsJwtGuard } from '../auth/guards/ws-jwt.guard';
 import { GameEventDto, ScoreUpdateDto } from './dto/game.dto';
 import { JwtPayload } from '../auth/dto/auth.dto';
 import { RedisService } from '../common/services/redis.service';
+import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 
 interface SocketWithUser extends Socket {
-  user?: JwtPayload;
+  user?: {
+    sub: string;  // JwtService现在使用sub作为用户ID
+    openId?: string;
+    nickname?: string;
+    [key: string]: any;
+  };
 }
 
 @WebSocketGateway({
@@ -36,12 +43,17 @@ export class GameGateway
   // 存储用户与房间的映射关系
   private userRoomMap = new Map<string, string>();
 
+  private userSocketMap = new Map<string, string>();
+
+  private readonly logger = new Logger(GameGateway.name);
+
   constructor(
     private gameService: GameService,
     private roomService: RoomService,
     private userService: UserService,
     private jwtService: JwtService,
     private redisService: RedisService,
+    private configService: ConfigService,
   ) {}
 
   afterInit(server: Server) {
@@ -50,24 +62,26 @@ export class GameGateway
 
   async handleConnection(client: Socket) {
     try {
-      // 验证token
-      const token = client.handshake.auth.token || client.handshake.headers.authorization?.split(' ')[1];
-      
-      if (!token) {
-        client.disconnect();
-        return;
+      // 解析JWT令牌
+      const token = this.extractToken(client);
+      if (token) {
+        try {
+          const payload = await this.jwtService.verifyAsync(token, {
+            secret: this.configService.get<string>('JWT_SECRET'),
+          });
+          (client as SocketWithUser).user = payload;
+          
+          // 记录当前socket所属用户
+          const userId = payload.sub;
+          this.userSocketMap.set(userId, client.id);
+          
+          this.logger.log(`用户 ${userId} 已连接`);
+        } catch (error) {
+          this.logger.error(`令牌验证失败: ${error.message}`);
+        }
       }
-      
-      const payload = this.jwtService.verify(token) as JwtPayload;
-      (client as SocketWithUser).user = payload;
-      
-      // 将用户连接ID存储到Redis
-      await this.redisService.set(`user:${payload.userId}:socket`, client.id);
-      
-      console.log(`用户 ${payload.nickname} (${payload.userId}) 已连接, socketId: ${client.id}`);
     } catch (error) {
-      console.error(`Socket连接验证失败: ${error}`);
-      client.disconnect();
+      this.logger.error(`处理连接失败: ${error.message}`);
     }
   }
 
@@ -266,7 +280,7 @@ export class GameGateway
         return { success: false, message: '未授权' };
       }
       
-      const { userId } = socketWithUser.user;
+      const userId = socketWithUser.user.sub;
       const roomId = this.userRoomMap.get(userId);
       
       if (!roomId) {
@@ -277,12 +291,12 @@ export class GameGateway
       await this.gameService.handleGameEvent(roomId, {
         ...data,
         userId,
-        nickname: socketWithUser.user.nickname,
+        nickname: socketWithUser.user.nickname || '未知玩家',
       }, this.server);
       
       return { success: true };
     } catch (error) {
-      console.error(`处理游戏事件失败: ${error}`);
+      this.logger.error(`处理游戏事件失败: ${error.message}`);
       return { success: false, message: error.message };
     }
   }
@@ -369,5 +383,10 @@ export class GameGateway
       console.error(`准备下一局失败: ${error}`);
       return { success: false, message: error.message };
     }
+  }
+
+  private extractToken(client: Socket): string | undefined {
+    const token = client.handshake.auth.token || client.handshake.headers.authorization?.split(' ')[1];
+    return token;
   }
 } 

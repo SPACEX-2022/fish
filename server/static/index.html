@@ -51,7 +51,7 @@
     <h1>多人钓鱼游戏服务器</h1>
     
     <div class="card">
-        <h2>服务器状态</h2>
+        <h2>服务器功能</h2>
         <p>这是多人钓鱼游戏的服务器静态资源目录。</p>
         <p>如果您看到这个页面，说明静态文件访问功能正常工作。</p>
         
@@ -61,10 +61,22 @@
                 <p><a href="/api/docs">查看API文档</a></p>
             </div>
             <div class="status-item">
-                <h3>静态资源</h3>
-                <p>访问路径: /static/*</p>
+                <h3>心跳功能</h3>
+                <p><a href="/static/heartbeat-example.html">查看心跳测试页面</a></p>
             </div>
         </div>
+    </div>
+    
+    <div class="card">
+        <h2>心跳连接说明</h2>
+        <p>本服务器支持用户登录后自动建立心跳连接，以实时监控用户的连接状态。</p>
+        <p>实现方式：</p>
+        <ul>
+            <li>登录成功后，服务器会自动创建心跳记录</li>
+            <li>客户端可通过WebSocket连接到 <code>/heartbeat</code> 命名空间</li>
+            <li>连接后需定期发送心跳消息，维持在线状态</li>
+            <li>服务器会在30秒无心跳后将用户标记为离线</li>
+        </ul>
     </div>
     
     <div class="card">
