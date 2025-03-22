@@ -1,185 +1,175 @@
 import * as PIXI from 'pixi.js';
 import { stage, screen, ticker } from '~/core';
+import BatterySystem from './BatterySystem';
 
 class Player {
-  constructor(app) {
-    this.app = app;
-    this.bullets = [];
-    
+  /**
+   * 创建一个玩家实例
+   * @param {Object} options - 玩家配置选项
+   */
+  constructor(options = {}) {
     // 玩家默认位置，通常在底部中央
     this.position = {
-      x: screen.width / 2,
-      y: screen.height // 更靠近底部
+      x: options.x || screen.width / 2,
+      y: options.y || screen.height // 更靠近底部
     };
+    
+    // 玩家属性
+    this.score = 0;
+    this.coins = options.coins || 0;
+    
+    // 创建炮台系统
+    this.batterySystem = new BatterySystem({
+      x: this.position.x,
+      y: this.position.y,
+      cannonOptions: options.cannonOptions || {
+        fireRate: 500,  // 每500毫秒可发射一次
+        burstCount: 1,  // 默认单发
+        burstSpacing: 100,  // 连发间隔
+      },
+      baseOptions: options.baseOptions || {},
+      bulletOptions: options.bulletOptions || {
+        speed: 10,
+        power: 1,
+        size: 1,
+        explosionRadius: 20,
+        explosionEffect: 'default'
+      }
+    });
   }
   
   /**
-   * 初始化炮台和底座
-   * @param {PIXI.Container} container - 要添加炮台的容器
+   * 初始化玩家
+   * @param {PIXI.Container} container - 要添加玩家元素的容器
    */
-  initBattery(container) {
+  init(container) {
     if (!container) {
-      console.error('初始化炮台失败：容器不存在');
+      console.error('初始化玩家失败：容器不存在');
       return;
     }
     
-    // 创建底座精灵
-    this.batteryBase = PIXI.Sprite.from('assets/images/batteryBase.png');
-    this.batteryBase.anchor.set(0.5, 1);
-    this.batteryBase.position.set(this.position.x, this.position.y);
+    // 初始化炮台系统
+    this.batterySystem.init(container);
     
-    // 创建炮台精灵
-    this.battery = PIXI.Sprite.from('assets/images/battery.png');
-    this.battery.anchor.set(0.5, 0.8); // 修改锚点使炮台底部对齐底座
-    this.battery.position.set(this.position.x, this.position.y);
-    
-    // 将炮台和底座添加到传入的容器中
-    container.addChild(this.batteryBase);
-    container.addChild(this.battery);
-    
-    console.log('炮台初始化完成，位置:', this.position.x, this.position.y);
+    console.log('玩家初始化完成，位置:', this.position.x, this.position.y);
   }
   
   /**
-   * 旋转炮台朝向目标位置
-   * @param {number} targetX - 目标x坐标
-   * @param {number} targetY - 目标y坐标
-   */
-  rotateBattery(targetX, targetY) {
-    if (!this.battery) return;
-    
-    // 计算点击位置与炮台位置的角度
-    const dx = targetX - this.battery.position.x;
-    const dy = targetY - this.battery.position.y;
-    const angle = Math.atan2(dy, dx);
-    
-    // 设置炮台旋转角度（PixiJS中的旋转是顺时针的，所以需要正角度）
-    this.battery.rotation = angle + Math.PI / 2; // 加90度是因为炮台图片默认朝上
-  }
-
-  /**
-   * 发射子弹方法
+   * 处理射击事件
    * @param {number} targetX - 目标x坐标
    * @param {number} targetY - 目标y坐标
    * @param {PIXI.Container} container - 添加子弹的容器
-   * @returns {PIXI.Sprite} - 返回创建的子弹精灵
+   * @returns {Array} - 返回发射的子弹数组
    */
-  shootBullet(targetX, targetY, container) {
-    if (!this.battery || !container) {
-      console.error('发射子弹失败：炮台或容器不存在');
-      return null;
-    }
-    
-    console.log('子弹已发射');
-    
-    try {
-      // 旋转炮台朝向目标
-      this.rotateBattery(targetX, targetY);
-      
-      // 计算子弹初始位置（炮台顶端）
-      const rotation = this.battery.rotation - Math.PI / 2; // 转回实际角度
-      const bulletOffsetLength = this.battery.height / 0.8; // 炮台顶端到炮台中心的距离
-      const bulletStartX = this.battery.position.x + Math.cos(rotation) * bulletOffsetLength;
-      const bulletStartY = this.battery.position.y + Math.sin(rotation) * bulletOffsetLength;
-      
-      // 创建子弹精灵
-      const bullet = PIXI.Sprite.from('assets/images/bullet.png');
-      
-      // 设置子弹锚点为中心点
-      bullet.anchor.set(0.5);
-      
-      // 设置子弹初始位置
-      bullet.position.set(bulletStartX, bulletStartY);
-      
-      // 设置子弹旋转角度与炮台一致
-      bullet.rotation = this.battery.rotation;
-      
-      // 保存子弹移动方向
-      bullet.directionX = Math.cos(rotation);
-      bullet.directionY = Math.sin(rotation);
-      bullet.speed = 10; // 子弹速度
-      
-      // 添加到容器
-      container.addChild(bullet);
-      
-      // 添加到子弹数组，用于后续管理
-      this.bullets.push(bullet);
-      
-      return bullet;
-    } catch (error) {
-      console.error('发射子弹时出错:', error);
-      return null;
-    }
+  shoot(targetX, targetY, container) {
+    return this.batterySystem.fire(targetX, targetY, container);
   }
   
   /**
-   * 显示爆炸特效
-   * @param {number} x - 爆炸x坐标
-   * @param {number} y - 爆炸y坐标
-   * @param {PIXI.Container} container - 添加爆炸特效的容器
-   */
-  showExplosion(x, y, container) {
-    if (!container) {
-      console.error('显示爆炸特效失败：容器不存在');
-      return;
-    }
-    
-    const explosion = PIXI.Sprite.from('assets/images/boomEffect.png');
-    explosion.anchor.set(0.5);
-    explosion.position.set(x, y);
-    
-    // 添加到容器
-    container.addChild(explosion);
-    
-    // 设置爆炸特效动画
-    let alpha = 1;
-    let scale = 0.5;
-    
-    // 使用ticker创建帧动画
-    const explosionTicker = (delta) => {
-      alpha -= 0.05;
-      scale += 0.05;
-      
-      explosion.alpha = alpha;
-      explosion.scale.set(scale);
-      
-      if (alpha <= 0) {
-        container.removeChild(explosion);
-        ticker.remove(explosionTicker);
-      }
-    };
-    
-    ticker.add(explosionTicker);
-  }
-  
-  /**
-   * 更新子弹位置
-   * @param {number} delta - 每帧时间差
+   * 更新玩家状态
+   * @param {number} delta - 帧时间差
    * @param {PIXI.Container} container - 子弹所在的容器
+   * @param {Array} fishes - 鱼对象数组，用于碰撞检测
    */
-  updateBullets(delta, container) {
-    if (!container) return;
+  update(delta, container, fishes) {
+    // 更新子弹
+    this.batterySystem.updateBullets(delta, container);
     
-    // 更新所有子弹的位置
-    for (let i = this.bullets.length - 1; i >= 0; i--) {
-      const bullet = this.bullets[i];
+    // 检测碰撞
+    if (fishes) {
+      const hitResults = this.batterySystem.checkCollisions(fishes, container);
       
-      // 移动子弹
-      bullet.position.x += bullet.directionX * bullet.speed;
-      bullet.position.y += bullet.directionY * bullet.speed;
-      
-      // 检查子弹是否超出屏幕
-      if (
-        bullet.position.x < -50 || 
-        bullet.position.x > screen.width + 50 || 
-        bullet.position.y < -50 || 
-        bullet.position.y > screen.height + 50
-      ) {
-        // 移除子弹
-        container.removeChild(bullet);
-        this.bullets.splice(i, 1);
+      // 处理击中结果
+      this.processHitResults(hitResults);
+    }
+  }
+  
+  /**
+   * 处理击中结果
+   * @param {Array} hitResults - 击中结果数组
+   */
+  processHitResults(hitResults) {
+    if (!hitResults || hitResults.length === 0) return;
+    
+    // 计算得分和金币
+    for (const result of hitResults) {
+      if (result.isDead) {
+        // 鱼被击杀，加分和金币
+        this.score += result.score;
+        this.coins += Math.round(result.score / 2); // 示例：金币为分数的一半
+        
+        console.log(`鱼被击杀，获得分数: ${result.score}, 金币: ${Math.round(result.score / 2)}`);
       }
     }
+  }
+  
+  /**
+   * 升级炮台
+   * @param {Object} upgradeOptions - 升级选项
+   */
+  upgradeCannon(upgradeOptions) {
+    // 检查金币是否足够
+    if (upgradeOptions.price && this.coins < upgradeOptions.price) {
+      console.log('金币不足，无法升级');
+      return false;
+    }
+    
+    // 扣除金币
+    if (upgradeOptions.price) {
+      this.coins -= upgradeOptions.price;
+    }
+    
+    // 升级炮台
+    this.batterySystem.upgradeCannon(upgradeOptions);
+    
+    return true;
+  }
+  
+  /**
+   * 更换底座
+   * @param {Object} newBaseOptions - 新底座选项
+   * @param {PIXI.Container} container - 容器
+   */
+  changeBase(newBaseOptions, container) {
+    // 检查金币是否足够
+    if (newBaseOptions.price && this.coins < newBaseOptions.price) {
+      console.log('金币不足，无法更换底座');
+      return false;
+    }
+    
+    // 扣除金币
+    if (newBaseOptions.price) {
+      this.coins -= newBaseOptions.price;
+    }
+    
+    // 更换底座
+    this.batterySystem.changeBase(newBaseOptions, container);
+    
+    return true;
+  }
+  
+  /**
+   * 获取玩家分数
+   * @returns {number} - 玩家分数
+   */
+  getScore() {
+    return this.score;
+  }
+  
+  /**
+   * 获取玩家金币
+   * @returns {number} - 玩家金币
+   */
+  getCoins() {
+    return this.coins;
+  }
+  
+  /**
+   * 增加玩家金币
+   * @param {number} amount - 增加的金币数量
+   */
+  addCoins(amount) {
+    this.coins += amount;
   }
 }
 
