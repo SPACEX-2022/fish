@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { screen, ticker } from '~/core';
-import { PixelateFilter, OutlineFilter } from 'pixi-filters';
+import { PixelateFilter, OutlineFilter, MotionBlurFilter } from 'pixi-filters';
 const { random, PI, sin, cos, abs } = Math;
 
 // 鱼的习性类型枚举
@@ -168,7 +168,7 @@ class Fish {
     // 平滑旋转到目标方向
     this.smoothRotation();
     
-    // 更新位置
+    // 根据当前速度和方向更新位置
     this.sprite.x -= cos(this.direction) * this.speed;
     this.sprite.y -= sin(this.direction) * this.speed;
     
@@ -179,6 +179,39 @@ class Fish {
 
       this.sprite.y < bound.top ? this.sprite.y = bound.bottom :
       this.sprite.y > bound.bottom ? this.sprite.y = bound.top : 0;
+    }
+    
+    // 如果是逃跑行为，且速度大于阈值，则应用运动模糊效果
+    if (this.behavior === FISH_BEHAVIORS.ESCAPE && Math.abs(cos(this.direction) * this.speed) > 3) {
+      if (!this.motionBlurFilter) {
+        // 创建运动模糊滤镜
+        this.motionBlurFilter = new MotionBlurFilter([cos(this.direction) * this.speed / 10, sin(this.direction) * this.speed / 10], 5);
+        
+        // 应用滤镜
+        if (this.sprite.filters) {
+          this.sprite.filters.push(this.motionBlurFilter);
+        } else {
+          this.sprite.filters = [this.motionBlurFilter];
+        }
+      } else {
+        // 更新运动模糊滤镜的参数
+        this.motionBlurFilter.velocity = [cos(this.direction) * this.speed / 10, sin(this.direction) * this.speed / 10];
+        // 根据速度调整模糊强度
+        const blurStrength = Math.min(Math.abs(cos(this.direction) * this.speed) / 2, 15);
+        this.motionBlurFilter.kernelSize = Math.max(3, Math.floor(blurStrength));
+      }
+    } else if (this.motionBlurFilter) {
+      // 如果不是逃跑行为或速度不够，则移除运动模糊效果
+      if (this.sprite.filters) {
+        const index = this.sprite.filters.indexOf(this.motionBlurFilter);
+        if (index > -1) {
+          this.sprite.filters.splice(index, 1);
+          if (this.sprite.filters.length === 0) {
+            this.sprite.filters = null;
+          }
+        }
+      }
+      this.motionBlurFilter = null;
     }
   }
   
