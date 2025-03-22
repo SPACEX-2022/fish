@@ -203,12 +203,13 @@ function showFloatingScore(x: number, y: number, score: number) {
   
   // 首先添加"+"号
   const plusText = new PIXI.Text('+', {
-    fontFamily: 'Arial',
+    fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
     fontSize: 24,
     fill: 0xFFFF00,
     fontWeight: 'bold',
     stroke: 0x000000,
-    strokeThickness: 4
+    strokeThickness: 4,
+    letterSpacing: 1
   });
   plusText.position.x = 0;
   scoreContainer.addChild(plusText);
@@ -229,12 +230,13 @@ function showFloatingScore(x: number, y: number, score: number) {
         console.error(`数字精灵纹理无效: num${digit}.png`);
         // 使用文本作为备用
         const digitText = new PIXI.Text(digit, {
-          fontFamily: 'Arial',
+          fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
           fontSize: 24,
           fill: 0xFFFF00,
           fontWeight: 'bold',
           stroke: 0x000000,
-          strokeThickness: 4
+          strokeThickness: 4,
+          letterSpacing: 1
         });
         digitText.position.x = totalWidth;
         scoreContainer.addChild(digitText);
@@ -251,12 +253,13 @@ function showFloatingScore(x: number, y: number, score: number) {
     console.error('创建数字精灵时出错:', error);
     // 如果出错，直接使用文本作为备用
     const scoreText = new PIXI.Text(`+${score}`, {
-      fontFamily: 'Arial',
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
       fontSize: 24,
       fill: 0xFFFF00,
       fontWeight: 'bold',
       stroke: 0x000000,
-      strokeThickness: 4
+      strokeThickness: 4,
+      letterSpacing: 1
     });
     scoreContainer.removeChildren();
     scoreContainer.addChild(scoreText);

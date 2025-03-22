@@ -44,8 +44,8 @@ class HUD {
   initScoreDisplay() {
     // 创建分数标签
     const scoreLabel = new PIXI.Text('分数:', {
-      fontFamily: 'Arial',
-      fontSize: 24,
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 30,
       fill: 0xFFFFFF,
       fontWeight: 'bold',
       stroke: 0x000000,
@@ -53,7 +53,8 @@ class HUD {
       dropShadow: true,
       dropShadowColor: 0x000000,
       dropShadowBlur: 4,
-      dropShadowDistance: 2
+      dropShadowDistance: 2,
+      letterSpacing: 1
     });
     
     // 设置标签位置
@@ -109,7 +110,7 @@ class HUD {
     
     // 创建连击文本
     const comboText = new PIXI.Text('连击 x1', {
-      fontFamily: 'Arial',
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
       fontSize: 28,
       fill: 0xFF8C00,
       fontWeight: 'bold',
@@ -118,7 +119,8 @@ class HUD {
       dropShadow: true,
       dropShadowColor: 0x000000,
       dropShadowBlur: 5,
-      dropShadowDistance: 2
+      dropShadowDistance: 2,
+      letterSpacing: 1
     });
     
     // 设置位置 - 屏幕中央偏上

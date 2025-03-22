@@ -171,7 +171,7 @@ class GameStartUI {
     console.log('多人模式开发中');
     // 创建提示文本
     const noticeText = new PIXI.Text('正在开发中，敬请期待!', {
-      fontFamily: 'Arial',
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
       fontSize: 24,
       fill: 0xFFFFFF,
       align: 'center',
