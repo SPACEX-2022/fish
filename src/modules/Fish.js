@@ -129,6 +129,124 @@ class Fish {
   }
   
   /**
+   * 平滑旋转到目标方向
+   */
+  smoothRotation() {
+    // 如果当前方向与目标方向相同，使用普通旋转
+    if (this.direction === this.targetDirection) {
+      this.direction += this.turnSpeed * this.rotationSpeed;
+      this.direction %= PIXI.PI_2;
+      this.sprite.rotation = this.direction;
+      
+      // 如果存在因转向产生的运动模糊，移除它
+      this.removeMotionBlurIfExists('turning');
+      return;
+    }
+    
+    // 计算最短角度差
+    let angleDiff = this.targetDirection - this.direction;
+    
+    // 处理角度环绕情况
+    if (angleDiff > PI) angleDiff -= PIXI.PI_2;
+    if (angleDiff < -PI) angleDiff += PIXI.PI_2;
+    
+    // 平滑旋转
+    const rotationAmount = angleDiff > 0 ? 
+      Math.min(this.forcedRotationSpeed, angleDiff) : 
+      Math.max(-this.forcedRotationSpeed, angleDiff);
+    
+    this.direction += rotationAmount;
+    this.direction %= PIXI.PI_2;
+    this.sprite.rotation = this.direction;
+    
+    // 应用转向时的运动模糊效果
+    // 只有当角度变化足够大时才应用，避免小角度变化也产生模糊
+    if (Math.abs(rotationAmount) > 0.02) {
+      // 计算垂直于鱼的方向的向量，用于模拟转弯时的横向力
+      const perpendicularX = -sin(this.direction) * (rotationAmount > 0 ? 1 : -1);
+      const perpendicularY = -cos(this.direction) * (rotationAmount > 0 ? -1 : 1);
+      
+      // 应用转向模糊效果
+      this.applyTurningMotionBlur(perpendicularX, perpendicularY, Math.abs(rotationAmount));
+    } else {
+      // 角度变化不大，移除之前可能存在的转向模糊
+      this.removeMotionBlurIfExists('turning');
+    }
+    
+    // 如果接近目标方向，直接设为目标方向
+    if (abs(angleDiff) < this.forcedRotationSpeed) {
+      this.direction = this.targetDirection;
+    }
+  }
+  
+  /**
+   * 应用转向时的运动模糊
+   * @param {number} dirX - 模糊方向X分量
+   * @param {number} dirY - 模糊方向Y分量
+   * @param {number} rotationSpeed - 旋转速度，用于计算模糊强度
+   */
+  applyTurningMotionBlur(dirX, dirY, rotationSpeed) {
+    // 转向模糊与逃跑模糊互斥，优先显示当前动作对应的模糊效果
+    const isEscaping = this.behavior === FISH_BEHAVIORS.ESCAPE && Math.abs(cos(this.direction) * this.speed) > 3;
+    
+    // 如果正在逃跑中，不应用转向模糊
+    if (isEscaping) return;
+      
+    // 调整模糊强度，使其与旋转速度成正比
+    const blurIntensity = Math.min(rotationSpeed * 50, 20);
+    const velocityX = dirX * blurIntensity;
+    const velocityY = dirY * blurIntensity;
+      
+    // 检查是否已经有转向模糊滤镜
+    if (!this.turningBlurFilter) {
+      this.turningBlurFilter = new MotionBlurFilter([velocityX, velocityY], 3);
+        
+      // 应用滤镜
+      if (this.sprite.filters) {
+        this.sprite.filters.push(this.turningBlurFilter);
+      } else {
+        this.sprite.filters = [this.turningBlurFilter];
+      }
+    } else {
+      // 更新模糊方向和强度
+      this.turningBlurFilter.velocity = [velocityX, velocityY];
+      const kernelSize = Math.max(3, Math.min(9, Math.floor(blurIntensity / 3)));
+      this.turningBlurFilter.kernelSize = kernelSize;
+    }
+  }
+  
+  /**
+   * 移除指定类型的运动模糊效果
+   * @param {string} blurType - 模糊类型，'turning'为转向模糊，'escape'为逃跑模糊
+   */
+  removeMotionBlurIfExists(blurType) {
+    // 确定要移除的滤镜
+    let filterToRemove = null;
+    if (blurType === 'turning' && this.turningBlurFilter) {
+      filterToRemove = this.turningBlurFilter;
+    } else if (blurType === 'escape' && this.motionBlurFilter) {
+      filterToRemove = this.motionBlurFilter;
+    }
+    
+    if (filterToRemove && this.sprite.filters) {
+      const index = this.sprite.filters.indexOf(filterToRemove);
+      if (index > -1) {
+        this.sprite.filters.splice(index, 1);
+        if (this.sprite.filters.length === 0) {
+          this.sprite.filters = null;
+        }
+      }
+      
+      // 重置对应滤镜变量
+      if (blurType === 'turning') {
+        this.turningBlurFilter = null;
+      } else if (blurType === 'escape') {
+        this.motionBlurFilter = null;
+      }
+    }
+  }
+  
+  /**
    * 更新鱼的位置和状态
    * @param {number} delta - 帧时间差
    * @param {object} bound - 屏幕边界
@@ -193,6 +311,9 @@ class Fish {
         } else {
           this.sprite.filters = [this.motionBlurFilter];
         }
+        
+        // 如果正在转向，移除转向模糊，避免两种模糊效果叠加
+        this.removeMotionBlurIfExists('turning');
       } else {
         // 更新运动模糊滤镜的参数
         this.motionBlurFilter.velocity = [cos(this.direction) * this.speed / 10, sin(this.direction) * this.speed / 10];
@@ -202,50 +323,7 @@ class Fish {
       }
     } else if (this.motionBlurFilter) {
       // 如果不是逃跑行为或速度不够，则移除运动模糊效果
-      if (this.sprite.filters) {
-        const index = this.sprite.filters.indexOf(this.motionBlurFilter);
-        if (index > -1) {
-          this.sprite.filters.splice(index, 1);
-          if (this.sprite.filters.length === 0) {
-            this.sprite.filters = null;
-          }
-        }
-      }
-      this.motionBlurFilter = null;
-    }
-  }
-  
-  /**
-   * 平滑旋转到目标方向
-   */
-  smoothRotation() {
-    // 如果当前方向与目标方向相同，使用普通旋转
-    if (this.direction === this.targetDirection) {
-      this.direction += this.turnSpeed * this.rotationSpeed;
-      this.direction %= PIXI.PI_2;
-      this.sprite.rotation = this.direction;
-      return;
-    }
-    
-    // 计算最短角度差
-    let angleDiff = this.targetDirection - this.direction;
-    
-    // 处理角度环绕情况
-    if (angleDiff > PI) angleDiff -= PIXI.PI_2;
-    if (angleDiff < -PI) angleDiff += PIXI.PI_2;
-    
-    // 平滑旋转
-    const rotationAmount = angleDiff > 0 ? 
-      Math.min(this.forcedRotationSpeed, angleDiff) : 
-      Math.max(-this.forcedRotationSpeed, angleDiff);
-    
-    this.direction += rotationAmount;
-    this.direction %= PIXI.PI_2;
-    this.sprite.rotation = this.direction;
-    
-    // 如果接近目标方向，直接设为目标方向
-    if (abs(angleDiff) < this.forcedRotationSpeed) {
-      this.direction = this.targetDirection;
+      this.removeMotionBlurIfExists('escape');
     }
   }
   
