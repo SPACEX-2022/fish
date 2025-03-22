@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { screen, ticker } from '~/core';
-import { PixelateFilter } from 'pixi-filters';
+import { PixelateFilter, OutlineFilter } from 'pixi-filters';
 const { random, PI, sin, cos, abs } = Math;
 
 // 鱼的习性类型枚举
@@ -51,6 +51,11 @@ class Fish {
     this.deathAnimProgress = 0; // 死亡动画进度
     this.pixelateFilter = new PixelateFilter(); // 像素化滤镜
     this.pixelateFilter.size = 1; // 初始像素大小
+    
+    // 创建轮廓滤镜，但初始不应用
+    this.outlineFilter = new OutlineFilter(2, 0xFF0000, 0);
+    // 满血状态下不应用轮廓滤镜
+    this.sprite.filters = [];
     
     // 初始位置
     const x = options.x || random() * screen.width;
@@ -179,16 +184,24 @@ class Fish {
   }
   
   /**
-   * 接收伤害
+   * 处理鱼受到伤害
    * @param {number} damage - 伤害值
-   * @returns {boolean} - 返回是否死亡
+   * @returns {boolean} - 是否死亡
    */
   takeDamage(damage = 1) {
-    if (this.isDead) return true;
-    
     this.health -= damage;
     this.hit = true;
-    this.hitEffect = 0;
+    
+    // 计算血量比例
+    const healthRatio = 1 - this.health / this.maxHealth;
+    
+    // 更新轮廓滤镜
+    this.outlineFilter.alpha = healthRatio;
+    
+    // 确保滤镜被应用
+    if (healthRatio > 0 && !this.sprite.filters?.includes(this.outlineFilter)) {
+      this.sprite.filters = [this.outlineFilter];
+    }
     
     // 检查是否死亡
     if (this.health <= 0) {
@@ -263,13 +276,19 @@ class Fish {
    * 更新死亡动画
    */
   updateDeathAnimation() {
+    if (!this.isDeathAnimating) return;
+    
     this.deathAnimProgress += 0.02;
     
-    // 逐渐增加像素化效果
-    this.pixelateFilter.size = Math.pow(1 + this.deathAnimProgress * 5, 2);
+    // 更新像素化效果
+    this.pixelateFilter.size = 1 + this.deathAnimProgress * 20;
     
-    // 逐渐降低透明度
-    this.sprite.alpha = Math.max(0, 1 - this.deathAnimProgress);
+    // 缩小并淡出
+    this.sprite.scale.set(this.size * (1 - this.deathAnimProgress * 0.5));
+    this.sprite.alpha = 1 - this.deathAnimProgress;
+    
+    // 移除轮廓滤镜，避免干扰死亡动画效果
+    this.sprite.filters = [this.pixelateFilter];
     
     // 更新粒子效果
     if (this.particles) {
@@ -285,7 +304,7 @@ class Fish {
       }
     }
     
-    // 动画完成
+    // 动画结束
     if (this.deathAnimProgress >= 1) {
       this.isDeathAnimating = false;
       this.sprite.alpha = 0;
@@ -295,7 +314,6 @@ class Fish {
         this.particleContainer.parent.removeChild(this.particleContainer);
       }
       
-      // 通知外部死亡动画已完成
       this.onDeathAnimationComplete();
     }
   }
@@ -313,7 +331,20 @@ class Fish {
    * @returns {PIXI.Rectangle} - 碰撞矩形
    */
   getBounds() {
-    return this.sprite.getBounds();
+    // 获取原始边界盒
+    const originalBounds = this.sprite.getBounds();
+    
+    // 缩小碰撞检测范围，使游戏更有挑战性
+    const reduction = 0.3; // 缩小30%
+    const widthReduction = originalBounds.width * reduction;
+    const heightReduction = originalBounds.height * reduction;
+    
+    return new PIXI.Rectangle(
+      originalBounds.x + widthReduction / 2,
+      originalBounds.y + heightReduction / 2,
+      originalBounds.width - widthReduction,
+      originalBounds.height - heightReduction
+    );
   }
   
   /**

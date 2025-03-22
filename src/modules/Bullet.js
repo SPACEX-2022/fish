@@ -454,11 +454,24 @@ class Bullet {
   }
   
   /**
-   * 获取子弹的碰撞区域
-   * @returns {PIXI.Rectangle} - 碰撞矩形
+   * 获取子弹的边界盒，用于碰撞检测
+   * @returns {PIXI.Rectangle} - 子弹的边界矩形
    */
   getBounds() {
-    return this.sprite.getBounds();
+    // 获取原始边界盒
+    const originalBounds = this.sprite.getBounds();
+    
+    // 缩小碰撞检测范围，使游戏更有挑战性
+    const reduction = 0.4; // 缩小40%
+    const widthReduction = originalBounds.width * reduction;
+    const heightReduction = originalBounds.height * reduction;
+    
+    return new PIXI.Rectangle(
+      originalBounds.x + widthReduction / 2,
+      originalBounds.y + heightReduction / 2,
+      originalBounds.width - widthReduction,
+      originalBounds.height - heightReduction
+    );
   }
   
   /**
