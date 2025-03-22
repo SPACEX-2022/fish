@@ -6,7 +6,7 @@ import { Fish, FISH_BEHAVIORS, FISH_CATEGORIES } from '../../modules/Fish'
 import GameStartUI from '../../modules/GameStartUI'
 import audioManager from '../../modules/AudioManager'
 import HUD from '../../modules/HUD'
-import { SimpleLightmapFilter, SimplexNoiseFilter } from 'pixi-filters'
+import { KawaseBlurFilter } from 'pixi-filters'
 
 let root: PIXI.Container
 let fishes: Fish[] = []
@@ -23,7 +23,8 @@ const MAX_FISH_COUNT = 7; // 最大鱼的数量
 const FISH_RESPAWN_DELAY = 1000; // 鱼重生延迟时间(毫秒)
 
 // 添加全局变量用于墨水效果
-let inkFilter: SimplexNoiseFilter | null = null;
+let inkFilter: KawaseBlurFilter | null = null;
+let inkOverlay: PIXI.Sprite | null = null; // 墨水颜色覆盖层
 let isInkEffectActive = false;
 let inkEffectTimeout: number | null = null;
 
@@ -559,17 +560,16 @@ function applyInkEffect() {
       inkEffectTimeout = null;
     }
   } else {
-    // 创建新的墨水效果滤镜
-    inkFilter = new SimplexNoiseFilter({
-      noise: 0.7,           // 噪点强度
-      seed: Math.random(),  // 随机种子，每次效果不同
-      scale: 80,            // 噪声比例
-      width: screen.width,  // 宽度
-      height: screen.height // 高度
-    });
+    // 创建新的墨水效果滤镜 - 使用 KawaseBlurFilter
+    inkFilter = new KawaseBlurFilter(10, 8, true);
     
-    // 设置滤镜为蓝黑色墨水色调
-    (inkFilter as any).color = 0x000033; // 蓝黑色，模拟墨水颜色
+    // 创建墨水颜色覆盖层 - 深蓝黑色半透明
+    inkOverlay = new PIXI.Sprite(PIXI.Texture.WHITE);
+    inkOverlay.width = screen.width;
+    inkOverlay.height = screen.height;
+    inkOverlay.tint = 0x000033; // 深蓝黑色
+    inkOverlay.alpha = 0.4; // 40%透明度
+    inkOverlay.zIndex = 1000; // 确保在最上层
     
     // 应用滤镜到场景
     if (root.filters) {
@@ -577,6 +577,9 @@ function applyInkEffect() {
     } else {
       root.filters = [inkFilter];
     }
+    
+    // 添加覆盖层到场景
+    root.addChild(inkOverlay);
     
     isInkEffectActive = true;
     console.log('墨水效果已应用到场景');
@@ -592,29 +595,36 @@ function applyInkEffect() {
  * 淡出墨水效果
  */
 function fadeOutInkEffect() {
-  if (!inkFilter || !isInkEffectActive) return;
+  if ((!inkFilter && !inkOverlay) || !isInkEffectActive) return;
   
   console.log('开始淡出墨水效果');
   
   const startTime = Date.now();
   const duration = 1500; // 1.5秒淡出时间
-  const initialNoise = inkFilter.noise;
+  const initialBlur = inkFilter?.blur || 0;
+  const initialQuality = inkFilter?.quality || 0;
+  const initialAlpha = inkOverlay?.alpha || 0;
   
   const fadeOutTicker = (delta: number) => {
     const elapsed = Date.now() - startTime;
     const progress = Math.min(elapsed / duration, 1);
     
-    // 逐渐减少噪声强度和种子变换，产生墨水散开的效果
+    // 逐渐减少模糊强度，产生墨水散开的效果
     if (inkFilter) {
-      inkFilter.noise = initialNoise * (1 - progress);
-      inkFilter.seed += delta * 0.01; // 随时间轻微变化种子，创造流动感
-      inkFilter.scale = 80 + progress * 40; // 随着淡出，噪声比例变大，墨水扩散感
+      inkFilter.blur = initialBlur * (1 - progress);
+      inkFilter.quality = Math.max(1, Math.floor(initialQuality * (1 - progress)));
     }
     
-    // 淡出完成后移除滤镜
+    // 逐渐减少覆盖层透明度
+    if (inkOverlay) {
+      inkOverlay.alpha = initialAlpha * (1 - progress);
+    }
+    
+    // 淡出完成后移除滤镜和覆盖层
     if (progress >= 1) {
       ticker.remove(fadeOutTicker);
       
+      // 移除滤镜
       if (root.filters && inkFilter) {
         const filterIndex = root.filters.indexOf(inkFilter);
         if (filterIndex > -1) {
@@ -625,7 +635,13 @@ function fadeOutInkEffect() {
         }
       }
       
+      // 移除覆盖层
+      if (inkOverlay && inkOverlay.parent) {
+        inkOverlay.parent.removeChild(inkOverlay);
+      }
+      
       inkFilter = null;
+      inkOverlay = null;
       isInkEffectActive = false;
       console.log('墨水效果已完全淡出并移除');
     }
