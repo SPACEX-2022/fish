@@ -2,10 +2,11 @@ import * as PIXI from 'pixi.js'
 import {animate} from 'popmotion'
 import {stage, screen, ticker} from '~/core'
 import Player from '../../modules/Player'
-import { Fish, FISH_BEHAVIORS } from '../../modules/Fish'
+import { Fish, FISH_BEHAVIORS, FISH_CATEGORIES } from '../../modules/Fish'
 import GameStartUI from '../../modules/GameStartUI'
 import audioManager from '../../modules/AudioManager'
 import HUD from '../../modules/HUD'
+import { SimpleLightmapFilter, SimplexNoiseFilter } from 'pixi-filters'
 
 let root: PIXI.Container
 let fishes: Fish[] = []
@@ -20,6 +21,11 @@ let isBgmStarted: boolean = false
 // 添加全局变量用于控制鱼的数量
 const MAX_FISH_COUNT = 7; // 最大鱼的数量
 const FISH_RESPAWN_DELAY = 1000; // 鱼重生延迟时间(毫秒)
+
+// 添加全局变量用于墨水效果
+let inkFilter: SimplexNoiseFilter | null = null;
+let isInkEffectActive = false;
+let inkEffectTimeout: number | null = null;
 
 const bound = screen.clone().pad(100)
 const {max, random, PI, sin, cos} = Math
@@ -157,8 +163,18 @@ function startSinglePlayerGame() {
         // 如果鱼死亡，可以添加额外效果
         if (isDead) {
           console.log(`鱼死亡，显示飘动分数: ${score}`);
-          // 播放金币音效
-          audioManager.playEffect('coin', 'assets/mp3/coin.mp3');
+          
+          // 检查是否是章鱼，如果是则触发墨水效果
+          if (fish && fish.fishCategory === FISH_CATEGORIES.OCTOPUS) {
+            console.log('章鱼被击杀，触发墨水效果');
+            // 播放墨水音效
+            audioManager.playEffect('ink', 'assets/mp3/sfx_ink.mp3');
+            // 应用墨水滤镜效果
+            applyInkEffect();
+          } else {
+            // 普通鱼播放金币音效
+            audioManager.playEffect('coin', 'assets/mp3/coin.mp3');
+          }
           
           // 确保fish.sprite存在，否则使用默认位置
           let posX = screen.width / 2; // 默认屏幕中心
@@ -528,6 +544,95 @@ function setupTouchEvents() {
       console.error('设置鼠标事件出错:', e);
     }
   }
+}
+
+/**
+ * 应用墨水效果
+ */
+function applyInkEffect() {
+  console.log('应用墨水滤镜效果');
+  
+  // 如果已有墨水效果正在进行，先清除
+  if (isInkEffectActive) {
+    if (inkEffectTimeout) {
+      clearTimeout(inkEffectTimeout);
+      inkEffectTimeout = null;
+    }
+  } else {
+    // 创建新的墨水效果滤镜
+    inkFilter = new SimplexNoiseFilter({
+      noise: 0.7,           // 噪点强度
+      seed: Math.random(),  // 随机种子，每次效果不同
+      scale: 80,            // 噪声比例
+      width: screen.width,  // 宽度
+      height: screen.height // 高度
+    });
+    
+    // 设置滤镜为蓝黑色墨水色调
+    (inkFilter as any).color = 0x000033; // 蓝黑色，模拟墨水颜色
+    
+    // 应用滤镜到场景
+    if (root.filters) {
+      root.filters.push(inkFilter);
+    } else {
+      root.filters = [inkFilter];
+    }
+    
+    isInkEffectActive = true;
+    console.log('墨水效果已应用到场景');
+  }
+  
+  // 2秒后开始淡出墨水效果
+  inkEffectTimeout = setTimeout(() => {
+    fadeOutInkEffect();
+  }, 2000);
+}
+
+/**
+ * 淡出墨水效果
+ */
+function fadeOutInkEffect() {
+  if (!inkFilter || !isInkEffectActive) return;
+  
+  console.log('开始淡出墨水效果');
+  
+  const startTime = Date.now();
+  const duration = 1500; // 1.5秒淡出时间
+  const initialNoise = inkFilter.noise;
+  
+  const fadeOutTicker = (delta: number) => {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // 逐渐减少噪声强度和种子变换，产生墨水散开的效果
+    if (inkFilter) {
+      inkFilter.noise = initialNoise * (1 - progress);
+      inkFilter.seed += delta * 0.01; // 随时间轻微变化种子，创造流动感
+      inkFilter.scale = 80 + progress * 40; // 随着淡出，噪声比例变大，墨水扩散感
+    }
+    
+    // 淡出完成后移除滤镜
+    if (progress >= 1) {
+      ticker.remove(fadeOutTicker);
+      
+      if (root.filters && inkFilter) {
+        const filterIndex = root.filters.indexOf(inkFilter);
+        if (filterIndex > -1) {
+          root.filters.splice(filterIndex, 1);
+          if (root.filters.length === 0) {
+            root.filters = null;
+          }
+        }
+      }
+      
+      inkFilter = null;
+      isInkEffectActive = false;
+      console.log('墨水效果已完全淡出并移除');
+    }
+  };
+  
+  // 添加到ticker
+  ticker.add(fadeOutTicker);
 }
 
 export function show() {

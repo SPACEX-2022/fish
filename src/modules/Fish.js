@@ -11,6 +11,12 @@ const FISH_BEHAVIORS = {
   ERRATIC: 'erratic'      // 被击中后会随机变向
 };
 
+// 鱼的种类枚举
+const FISH_CATEGORIES = {
+  NORMAL: 'normal',      // 普通鱼
+  OCTOPUS: 'octopus'     // 章鱼
+};
+
 class Fish {
   /**
    * 创建一个鱼类实例
@@ -24,6 +30,14 @@ class Fish {
     
     // 设置基础属性
     this.type = type;
+    
+    // 设置鱼的种类属性
+    this.fishCategory = options.fishCategory || FISH_CATEGORIES.NORMAL;
+    // 如果是鱼类型2，将其设置为章鱼类型
+    if (type === '2') {
+      this.fishCategory = FISH_CATEGORIES.OCTOPUS;
+    }
+    
     this.size = options.size || 0.5;
     this.sprite.scale.set(this.size);
     
@@ -408,4 +422,4 @@ class Fish {
 }
 
 // 导出鱼类和习性枚举
-export { Fish, FISH_BEHAVIORS }; 
+export { Fish, FISH_BEHAVIORS, FISH_CATEGORIES }; 
