@@ -100,6 +100,21 @@ class Player {
         
         console.log(`鱼被击杀，获得分数: ${result.score}, 金币: ${Math.round(result.score / 2)}`);
       }
+      
+      // 触发外部回调（如果存在）
+      if (typeof this.onFishHit === 'function') {
+        this.onFishHit(result.fish, result.isDead, result.score);
+      }
+    }
+  }
+  
+  /**
+   * 设置鱼被击中的回调函数
+   * @param {Function} callback - 回调函数，接收鱼对象、是否死亡和分数参数
+   */
+  setOnFishHitCallback(callback) {
+    if (typeof callback === 'function') {
+      this.onFishHit = callback;
     }
   }
   

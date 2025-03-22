@@ -5,11 +5,14 @@ import Player from '../../modules/Player'
 import { Fish, FISH_BEHAVIORS } from '../../modules/Fish'
 import GameStartUI from '../../modules/GameStartUI'
 import audioManager from '../../modules/AudioManager'
+import HUD from '../../modules/HUD'
 
 let root: PIXI.Container
 let fishes: Fish[] = []
 let player: any
 let gameStartUI: any
+let hud: any // HUD实例
+let comboTimeout: number = 0 // 连击计时器
 let fishContainer: PIXI.Container
 let isGameStarted: boolean = false
 let isBgmStarted: boolean = false
@@ -62,6 +65,11 @@ function init() {
     console.log('游戏开始界面添加完成');
   }, 100);
   
+  // 初始化HUD但不显示，等游戏开始后再显示
+  hud = new HUD({
+    comboTimeout: 3000 // 3秒连击超时时间
+  });
+  
   // 设置触摸/点击事件，但现在不会触发射击
   setupTouchEvents()
 
@@ -70,6 +78,11 @@ function init() {
     if (isGameStarted && player) {
       // 更新玩家状态（包括子弹位置和碰撞检测）
       player.update(delta, root, fishes);
+      
+      // 同步HUD显示的分数
+      if (hud && player.getScore() !== hud.getScore()) {
+        hud.updateScore(player.getScore());
+      }
     }
     
     // 更新所有鱼的位置和状态
@@ -124,9 +137,169 @@ function startSinglePlayerGame() {
     // 初始化玩家并添加到root容器
     player.init(root)
     console.log('玩家初始化完成');
+    
+    // 显示HUD
+    if (hud) {
+      hud.show(root);
+      console.log('HUD显示完成');
+      
+      // 设置玩家击中鱼的回调
+      player.setOnFishHitCallback((fish: any, isDead: boolean, score: number) => {
+        console.log(`鱼被击中回调：isDead=${isDead}, score=${score}`);
+        
+        // 每次击中都增加连击数
+        hud.incrementCombo();
+        
+        // 如果鱼死亡，可以添加额外效果
+        if (isDead) {
+          console.log(`鱼死亡，显示飘动分数: ${score}`);
+          // 播放金币音效
+          audioManager.playEffect('coin', 'assets/mp3/coin.mp3');
+          
+          // 确保fish.sprite存在，否则使用默认位置
+          let posX = screen.width / 2; // 默认屏幕中心
+          let posY = screen.height / 2;
+          
+          if (fish && fish.sprite) {
+            posX = fish.sprite.x || fish.sprite.position.x;
+            posY = fish.sprite.y || fish.sprite.position.y;
+            console.log(`鱼位置: (${posX}, ${posY})`);
+          } else {
+            console.warn('鱼或鱼精灵不存在，使用默认位置');
+          }
+          
+          // 在得分位置显示飘动的分数
+          showFloatingScore(posX, posY, score);
+        }
+      });
+      
+      console.log('玩家击中鱼回调设置完成');
+    }
   } catch (error) {
     console.error('初始化玩家出错:', error);
   }
+}
+
+/**
+ * 显示飘动的分数
+ * @param {number} x - x坐标
+ * @param {number} y - y坐标
+ * @param {number} score - 分数值
+ */
+function showFloatingScore(x: number, y: number, score: number) {
+  console.log(`尝试显示飘动分数: +${score} 位置(${x}, ${y})`);
+  
+  // 创建一个容器来包含数字精灵
+  const scoreContainer = new PIXI.Container();
+  scoreContainer.position.set(x, y);
+  scoreContainer.pivot.set(0, 0);
+  scoreContainer.scale.set(0.8); // 稍微小一点的显示比例
+  
+  // 将分数转换为字符串
+  const scoreStr = `+${score}`;
+  
+  // 计算总宽度，用于居中
+  let totalWidth = 0;
+  
+  // 首先添加"+"号
+  const plusText = new PIXI.Text('+', {
+    fontFamily: 'Arial',
+    fontSize: 24,
+    fill: 0xFFFF00,
+    fontWeight: 'bold',
+    stroke: 0x000000,
+    strokeThickness: 4
+  });
+  plusText.position.x = 0;
+  scoreContainer.addChild(plusText);
+  
+  totalWidth += plusText.width + 2;
+  
+  try {
+    // 为每个数字创建精灵
+    for (let i = 1; i < scoreStr.length; i++) { // 从1开始跳过"+"号
+      const digit = scoreStr[i];
+      console.log(`尝试创建数字精灵: num${digit}.png`);
+      
+      // 直接使用预加载的数字图片
+      const digitSprite = PIXI.Sprite.from(`num${digit}.png`);
+      
+      // 确保精灵有纹理
+      if (!digitSprite.texture || digitSprite.texture.valid === false) {
+        console.error(`数字精灵纹理无效: num${digit}.png`);
+        // 使用文本作为备用
+        const digitText = new PIXI.Text(digit, {
+          fontFamily: 'Arial',
+          fontSize: 24,
+          fill: 0xFFFF00,
+          fontWeight: 'bold',
+          stroke: 0x000000,
+          strokeThickness: 4
+        });
+        digitText.position.x = totalWidth;
+        scoreContainer.addChild(digitText);
+        totalWidth += digitText.width + 2;
+      } else {
+        // 设置数字位置
+        digitSprite.position.x = totalWidth;
+        scoreContainer.addChild(digitSprite);
+        totalWidth += digitSprite.width + 2;
+        console.log(`成功添加数字精灵: num${digit}.png`);
+      }
+    }
+  } catch (error) {
+    console.error('创建数字精灵时出错:', error);
+    // 如果出错，直接使用文本作为备用
+    const scoreText = new PIXI.Text(`+${score}`, {
+      fontFamily: 'Arial',
+      fontSize: 24,
+      fill: 0xFFFF00,
+      fontWeight: 'bold',
+      stroke: 0x000000,
+      strokeThickness: 4
+    });
+    scoreContainer.removeChildren();
+    scoreContainer.addChild(scoreText);
+  }
+  
+  // 居中整个分数显示
+  for (let i = 0; i < scoreContainer.children.length; i++) {
+    scoreContainer.children[i].position.x -= totalWidth / 2;
+  }
+  
+  // 添加到舞台
+  root.addChild(scoreContainer);
+  console.log('飘动分数容器已添加到舞台');
+  
+  // 创建向上飘动并淡出的动画
+  const startTime = Date.now();
+  const duration = 1500; // 1.5秒
+  
+  const floatingScoreTicker = (delta: number) => {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // 向上移动
+    scoreContainer.position.y = y - progress * 80; // 向上移动80像素
+    
+    // 淡出效果
+    scoreContainer.alpha = 1 - progress;
+    
+    // 稍微放大后缩小
+    const scale = 0.8 + Math.sin(progress * Math.PI) * 0.3;
+    scoreContainer.scale.set(scale);
+    
+    // 动画结束后移除
+    if (progress >= 1) {
+      if (scoreContainer.parent) {
+        scoreContainer.parent.removeChild(scoreContainer);
+      }
+      ticker.remove(floatingScoreTicker);
+    }
+  };
+  
+  // 添加到ticker
+  ticker.add(floatingScoreTicker);
 }
 
 /**
