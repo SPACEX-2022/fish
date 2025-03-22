@@ -3,6 +3,7 @@ import { screen } from '~/core';
 import CannonBase from './CannonBase';
 import Cannon from './Cannon';
 import Bullet from './Bullet';
+import audioManager from './AudioManager';
 
 /**
  * 炮台系统类

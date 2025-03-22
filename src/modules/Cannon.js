@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
 import Bullet from './Bullet';
-
+import audioManager from './AudioManager';
 /**
  * 炮台类
  * 负责发射子弹和处理炮台相关逻辑
@@ -119,6 +119,9 @@ class Cannon {
     if (!this.canFire() || !container) {
       return [];
     }
+
+    // 播放子弹发射音效
+    audioManager.playEffect('shoot', 'assets/mp3/sound_hit.mp3');
     
     // 更新上次发射时间
     this.lastFireTime = Date.now();

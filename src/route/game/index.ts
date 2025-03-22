@@ -4,6 +4,7 @@ import {stage, screen, ticker} from '~/core'
 import Player from '../../modules/Player'
 import { Fish, FISH_BEHAVIORS } from '../../modules/Fish'
 import GameStartUI from '../../modules/GameStartUI'
+import audioManager from '../../modules/AudioManager'
 
 let root: PIXI.Container
 let fishes: Fish[] = []
@@ -11,6 +12,7 @@ let player: any
 let gameStartUI: any
 let fishContainer: PIXI.Container
 let isGameStarted: boolean = false
+let isBgmStarted: boolean = false
 
 const bound = screen.clone().pad(100)
 const {max, random, PI, sin, cos} = Math
@@ -38,6 +40,9 @@ function init() {
   const fishSprites = fishes.map(fish => fish.sprite);
   fishContainer.addChild(...fishSprites)
   root.addChild(overlay, bed, fishContainer)
+  
+  // 播放背景音乐
+  playBackgroundMusic()
   
   // 创建游戏开始界面
   gameStartUI = new GameStartUI({
@@ -76,6 +81,21 @@ function init() {
     overlay.tilePosition.x %= 512
     overlay.tilePosition.y %= 512
   })
+}
+
+/**
+ * 播放背景音乐
+ */
+function playBackgroundMusic() {
+  if (isBgmStarted) return;
+  
+  try {
+    console.log('开始播放背景音乐');
+    audioManager.playBGM('assets/mp3/bgm_scene.mp3', true);
+    isBgmStarted = true;
+  } catch (error) {
+    console.error('播放背景音乐失败:', error);
+  }
 }
 
 /**
@@ -287,10 +307,20 @@ export function show() {
     duration: 1e3,
     onUpdate: v => root.alpha = v
   })
+  
+  // 确保背景音乐播放
+  if (!isBgmStarted) {
+    playBackgroundMusic();
+  } else {
+    audioManager.resumeBGM();
+  }
 }
 
 export function hide() {
   stage.removeChild(root)
+  
+  // 暂停背景音乐
+  audioManager.pauseBGM();
   
   // 重置游戏状态
   isGameStarted = false;
