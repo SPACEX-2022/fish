@@ -96,3 +96,85 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+# 使用PM2部署服务并配置SSL
+
+## 准备工作
+
+1. 确保安装了PM2：
+```bash
+npm install -g pm2
+# 或
+pnpm add -g pm2
+```
+
+2. 安装依赖：
+```bash
+pnpm install
+```
+
+## SSL证书配置
+
+1. 创建存放SSL证书的目录：
+```bash
+mkdir -p ssl
+```
+
+2. 配置SSL证书：
+   - 如果您有正式的SSL证书，请将证书文件和密钥文件分别命名为`cert.pem`和`key.pem`，并放置在`ssl`目录下
+   - 如果仅用于测试，可以生成自签名证书：
+   ```bash
+   openssl req -x509 -newkey rsa:4096 -keyout ssl/key.pem -out ssl/cert.pem -days 365 -nodes
+   ```
+
+3. 配置.env文件启用SSL：
+```
+HTTPS_ENABLED=true
+SSL_CERT_PATH=./ssl/cert.pem
+SSL_KEY_PATH=./ssl/key.pem
+```
+
+## 部署服务
+
+### Linux/macOS
+
+使用提供的部署脚本：
+```bash
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
+```
+
+### Windows
+
+使用提供的批处理脚本：
+```
+scripts\deploy.bat
+```
+
+## PM2常用命令
+
+- 查看应用状态：
+```bash
+pm2 status
+```
+
+- 查看日志：
+```bash
+pm2 logs fish-game-server
+```
+
+- 重启应用：
+```bash
+pm2 restart fish-game-server
+```
+
+- 停止应用：
+```bash
+pm2 stop fish-game-server
+```
+
+- 设置开机自启：
+```bash
+pm2 startup
+pm2 save
+```

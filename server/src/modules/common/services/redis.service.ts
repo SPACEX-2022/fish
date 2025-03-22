@@ -21,7 +21,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.redisClient.on('connect', () => {
-      console.log('Redis连接成功');
+      const host = this.configService.get<string>('REDIS_HOST', 'localhost');
+      const port = this.configService.get<number>('REDIS_PORT', 6379);
+      console.log(`Redis连接成功! 已连接到: ${host}:${port}`);
     });
   }
 

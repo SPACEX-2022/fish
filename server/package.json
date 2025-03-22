@@ -1,7 +1,7 @@
 {
   "name": "fish-game-server",
   "version": "0.1.0",
-  "description": "多人钓鱼游戏服务器",
+  "description": "多人捕鱼游戏服务器",
   "author": "",
   "private": true,
   "license": "MIT",
@@ -32,6 +32,7 @@
     "@nestjs/swagger": "^7.0.0",
     "@nestjs/websockets": "^10.0.0",
     "@types/mongoose": "^5.11.97",
+    "axios": "^1.8.4",
     "bcrypt": "^5.1.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",

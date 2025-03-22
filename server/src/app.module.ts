@@ -22,6 +22,15 @@ import { CommonModule } from './modules/common/common.module';
         uri: configService.get<string>('MONGODB_URI'),
         useNewUrlParser: true,
         useUnifiedTopology: true,
+        connectionFactory: (connection) => {
+          connection.on('connected', () => {
+            console.log('数据库连接成功! 已连接到:', configService.get<string>('MONGODB_URI'));
+          });
+          connection.on('error', (error) => {
+            console.error('数据库连接错误:', error);
+          });
+          return connection;
+        },
       }),
     }),
     AuthModule,
