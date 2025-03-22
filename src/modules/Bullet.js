@@ -128,25 +128,35 @@ class Bullet {
    * 设置碰撞点（用于爆炸位置）
    * @param {number} x - 碰撞点x坐标
    * @param {number} y - 碰撞点y坐标
+   * @param {boolean} useChildBulletOffset - 是否使用子弹前端偏移计算
    */
-  setCollisionPoint(x, y) {
-    this.collisionPoint = { x, y };
+  setCollisionPoint(x, y, useChildBulletOffset = false) {
+    if (useChildBulletOffset) {
+      // 计算子弹前端位置
+      const bulletFrontOffset = this.sprite.width * 0.4; // 按子弹宽度的40%计算前端位置
+      const frontX = x + this.directionX * bulletFrontOffset;
+      const frontY = y + this.directionY * bulletFrontOffset;
+      this.collisionPoint = { x: frontX, y: frontY };
+    } else {
+      this.collisionPoint = { x, y };
+    }
   }
   
   /**
    * 触发子弹爆炸效果
    * @param {PIXI.Container} container - 添加爆炸效果的容器
    * @param {Object} collisionPoint - 碰撞点坐标，优先使用
+   * @param {boolean} useBulletFront - 是否使用子弹前端位置
    * @returns {Object} - 返回爆炸信息，包含范围和伤害
    */
-  explode(container, collisionPoint = null) {
+  explode(container, collisionPoint = null, useBulletFront = false) {
     if (this.hasExploded || !container) {
       return null;
     }
     
     // 如果提供了碰撞点，则更新碰撞位置
     if (collisionPoint) {
-      this.setCollisionPoint(collisionPoint.x, collisionPoint.y);
+      this.setCollisionPoint(collisionPoint.x, collisionPoint.y, useBulletFront);
     }
     
     // 标记子弹状态
@@ -179,27 +189,225 @@ class Bullet {
     const explosionX = this.collisionPoint ? this.collisionPoint.x : this.sprite.position.x;
     const explosionY = this.collisionPoint ? this.collisionPoint.y : this.sprite.position.y;
     
+    // 创建爆炸容器，并设置在碰撞位置
+    this.explosionContainer = new PIXI.Container();
+    this.explosionContainer.position.set(explosionX, explosionY);
+    
+    // ---------- 撞击瞬间闪光效果 ----------
+    // 创建一个亮色圆形作为撞击瞬间的闪光
+    const flash = new PIXI.Graphics();
+    flash.beginFill(0xFFFFFF, 0.8);
+    flash.drawCircle(0, 0, this.size * 15);
+    flash.endFill();
+    flash.alpha = 0.7;
+    flash.scale.set(0.1);
+    this.explosionContainer.addChild(flash);
+    
+    // 闪光快速扩散然后消失的动画
+    const flashDuration = 200; // 闪光持续时间，毫秒
+    const flashStartTime = Date.now();
+    
+    const flashTicker = (delta) => {
+      const elapsed = Date.now() - flashStartTime;
+      const progress = Math.min(elapsed / flashDuration, 1);
+      
+      // 闪光迅速扩大然后迅速消失
+      const scale = 0.1 + progress * 1.5;
+      const alpha = 0.7 * (1 - progress * 1.2); // 先变亮一点然后变暗
+      
+      flash.scale.set(scale);
+      flash.alpha = Math.max(0, alpha);
+      
+      // 动画结束时移除
+      if (progress >= 1) {
+        this.explosionContainer.removeChild(flash);
+        ticker.remove(flashTicker);
+      }
+    };
+    
+    ticker.add(flashTicker);
+    
+    // ---------- 冲击波效果 ----------
+    // 创建一个环形作为冲击波
+    const shockwave = new PIXI.Graphics();
+    shockwave.lineStyle(2, 0xFFFFFF, 0.7);
+    shockwave.drawCircle(0, 0, this.size * 15);
+    shockwave.alpha = 0.5;
+    shockwave.scale.set(0.2);
+    this.explosionContainer.addChild(shockwave);
+    
+    // 冲击波扩散动画
+    const shockwaveDuration = 400; // 冲击波持续时间，毫秒
+    const shockwaveStartTime = Date.now();
+    
+    const shockwaveTicker = (delta) => {
+      const elapsed = Date.now() - shockwaveStartTime;
+      const progress = Math.min(elapsed / shockwaveDuration, 1);
+      
+      // 冲击波逐渐扩大并淡出
+      const scale = 0.2 + progress * 2.0;
+      const alpha = 0.5 * (1 - progress);
+      const lineWidth = Math.max(0.5, 2 * (1 - progress)); // 线条逐渐变细
+      
+      shockwave.scale.set(scale);
+      shockwave.alpha = alpha;
+      
+      // 重新绘制线条以改变线宽
+      if (progress < 0.9) { // 避免最后阶段频繁重绘
+        shockwave.clear();
+        shockwave.lineStyle(lineWidth, 0xFFFFFF, 0.7);
+        shockwave.drawCircle(0, 0, this.size * 15);
+      }
+      
+      // 动画结束时移除
+      if (progress >= 1) {
+        this.explosionContainer.removeChild(shockwave);
+        ticker.remove(shockwaveTicker);
+      }
+    };
+    
+    ticker.add(shockwaveTicker);
+    
+    // ---------- 主爆炸效果 ----------
     // 创建爆炸精灵
     const explosion = PIXI.Sprite.from(config.texture);
     explosion.anchor.set(0.5);
     explosion.position.set(0, 0); // 设置为本地坐标系原点
-    explosion.scale.set(config.startScale * this.size); // 根据子弹大小缩放爆炸效果
-    explosion.alpha = config.startAlpha;
-    
-    // 创建爆炸容器，并设置在碰撞位置
-    this.explosionContainer = new PIXI.Container();
-    this.explosionContainer.position.set(explosionX, explosionY);
+    explosion.scale.set(config.startScale * this.size * 0.5); // 初始爆炸效果更小，便于过渡
+    explosion.alpha = config.startAlpha * 0.7; // 初始透明度稍低
     this.explosionContainer.addChild(explosion);
     
     // 添加到游戏容器
     container.addChild(this.explosionContainer);
     
-    // 移除原子弹精灵
+    // ---------- 子弹平滑过渡效果 ----------
+    // 不立即移除子弹，而是将其移动到爆炸位置开始融合过渡
     if (this.sprite.parent) {
-      this.sprite.parent.removeChild(this.sprite);
+      // 添加子弹消失动画
+      const bulletFadeDuration = config.duration * 0.3; // 子弹消失时间是爆炸总时间的30%
+      const bulletStartTime = Date.now();
+      
+      // 计算子弹缩放方向 - 应该沿着子弹的飞行方向
+      const scaleDirectionX = this.directionX;
+      const scaleDirectionY = this.directionY;
+      
+      // 子弹消失的ticker
+      const bulletFadeTicker = (delta) => {
+        const elapsed = Date.now() - bulletStartTime;
+        const progress = Math.min(elapsed / bulletFadeDuration, 1);
+        
+        // 子弹逐渐缩小并变透明，但保持原来的位置，只是缩小前端
+        this.sprite.alpha = 1 - progress;
+        
+        // 计算缩放比例 - 使子弹看起来是从前端开始消失的
+        const scaleFactor = 1 - progress * 0.8;
+        
+        // 当子弹完全淡出时移除
+        if (progress >= 1) {
+          if (this.sprite.parent) {
+            this.sprite.parent.removeChild(this.sprite);
+          }
+          ticker.remove(bulletFadeTicker);
+        }
+      };
+      
+      // 添加到ticker
+      ticker.add(bulletFadeTicker);
     }
     
-    // 设置爆炸动画
+    // ---------- 爆炸粒子效果 ----------
+    // 根据子弹类型创建不同的粒子效果
+    let particleColor;
+    switch (this.explosionEffect) {
+      case 'fire':
+        particleColor = [0xFF4500, 0xFF8C00, 0xFFD700]; // 火焰色粒子
+        break;
+      case 'ice':
+        particleColor = [0xADD8E6, 0x87CEEB, 0xB0E0E6]; // 冰蓝色粒子
+        break;
+      default:
+        particleColor = [0xFFFFFF, 0xFFA500, 0xFFFF00]; // 默认白色/黄色粒子
+    }
+    
+    // 创建6-10个粒子
+    const particleCount = 6 + Math.floor(Math.random() * 5);
+    const particles = [];
+    
+    for (let i = 0; i < particleCount; i++) {
+      const particle = new PIXI.Graphics();
+      const colorIndex = Math.floor(Math.random() * particleColor.length);
+      particle.beginFill(particleColor[colorIndex], 0.8);
+      
+      // 随机粒子形状：圆形或小矩形
+      if (Math.random() > 0.5) {
+        particle.drawCircle(0, 0, 1 + Math.random() * 2);
+      } else {
+        const size = 1 + Math.random() * 3;
+        particle.drawRect(-size/2, -size/2, size, size);
+      }
+      
+      particle.endFill();
+      
+      // 随机初始位置（靠近中心点）
+      particle.position.set(
+        (Math.random() - 0.5) * 5,
+        (Math.random() - 0.5) * 5
+      );
+      
+      // 随机速度和方向
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.5 + Math.random() * 2;
+      particle.vx = Math.cos(angle) * speed;
+      particle.vy = Math.sin(angle) * speed;
+      
+      // 随机旋转
+      particle.rotation = Math.random() * Math.PI * 2;
+      particle.rotationSpeed = (Math.random() - 0.5) * 0.2;
+      
+      // 存储粒子信息
+      particles.push(particle);
+      this.explosionContainer.addChild(particle);
+    }
+    
+    // 粒子动画
+    const particleDuration = config.duration * 0.8;
+    const particleStartTime = Date.now();
+    
+    const particleTicker = (delta) => {
+      const elapsed = Date.now() - particleStartTime;
+      const progress = Math.min(elapsed / particleDuration, 1);
+      
+      // 更新所有粒子
+      for (let i = 0; i < particles.length; i++) {
+        const particle = particles[i];
+        
+        // 移动粒子
+        particle.position.x += particle.vx;
+        particle.position.y += particle.vy;
+        
+        // 粒子受到重力影响，向下加速
+        particle.vy += 0.05;
+        
+        // 添加旋转
+        particle.rotation += particle.rotationSpeed;
+        
+        // 缩小粒子并降低透明度
+        particle.scale.set(1 - progress * 0.8);
+        particle.alpha = 1 - progress;
+      }
+      
+      // 动画结束移除所有粒子
+      if (progress >= 1) {
+        for (let i = 0; i < particles.length; i++) {
+          this.explosionContainer.removeChild(particles[i]);
+        }
+        ticker.remove(particleTicker);
+      }
+    };
+    
+    ticker.add(particleTicker);
+    
+    // 设置主爆炸动画
     const startTime = Date.now();
     const duration = config.duration;
     
@@ -208,13 +416,23 @@ class Bullet {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       
+      // 爆炸效果延迟一点开始，使之与子弹融合效果错开
+      const delayedProgress = Math.max(0, (progress - 0.1) / 0.9);
+      if (delayedProgress <= 0) return;
+      
       // 计算当前帧的缩放和透明度
-      const scale = config.startScale + (config.endScale - config.startScale) * progress;
-      const alpha = config.startAlpha + (config.endAlpha - config.startAlpha) * progress;
+      const scale = config.startScale + (config.endScale - config.startScale) * delayedProgress;
+      const alpha = config.startAlpha + (config.endAlpha - config.startAlpha) * delayedProgress;
       
       // 更新爆炸特效
       explosion.scale.set(scale * this.size);
       explosion.alpha = alpha;
+      
+      // 爆炸特效在初期添加一些脉动效果
+      if (delayedProgress < 0.3) {
+        const pulse = 1 + Math.sin(delayedProgress * Math.PI * 5) * 0.1;
+        explosion.scale.set(explosion.scale.x * pulse, explosion.scale.y * pulse);
+      }
       
       // 动画结束
       if (progress >= 1) {
