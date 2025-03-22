@@ -17,6 +17,10 @@ let fishContainer: PIXI.Container
 let isGameStarted: boolean = false
 let isBgmStarted: boolean = false
 
+// 添加全局变量用于控制鱼的数量
+const MAX_FISH_COUNT = 7; // 最大鱼的数量
+const FISH_RESPAWN_DELAY = 1000; // 鱼重生延迟时间(毫秒)
+
 const bound = screen.clone().pad(100)
 const {max, random, PI, sin, cos} = Math
 
@@ -307,58 +311,95 @@ function showFloatingScore(x: number, y: number, score: number) {
 
 /**
  * 创建不同种类的鱼群
+ * @param {boolean} isRefill - 是否是补充模式（如果是则只添加到最大数量）
  */
-function createFishSchool() {
-  fishes = [];
+function createFishSchool(isRefill = false) {
+  // 如果是补充模式且当前鱼的数量已达到上限，则不再创建
+  if (isRefill && fishes.length >= MAX_FISH_COUNT) return;
   
-  // 创建普通鱼
-  for (let i = 0; i < 8; i++) {
+  // 如果不是补充模式，则重置鱼群
+  if (!isRefill) {
+    fishes = [];
+  }
+  
+  // 计算需要创建的鱼的数量
+  const targetCount = isRefill ? MAX_FISH_COUNT : Math.min(MAX_FISH_COUNT, 7); // 初始最多7条鱼
+  const createCount = targetCount - fishes.length;
+  
+  if (createCount <= 0) return;
+  
+  console.log(`创建鱼群: 当前${fishes.length}条, 目标${targetCount}条, 将创建${createCount}条`);
+  
+  // 创建普通鱼 - 减少30%的数量
+  const normalFishCount = Math.floor(createCount * 0.5); // 约50%是普通鱼
+  for (let i = 0; i < normalFishCount; i++) {
+    if (fishes.length >= targetCount) break;
+    
     const fishType = (i % 4 + 1).toString();
     const fish = new Fish(fishType, {
       size: 0.5,
       health: 1,
-      behavior: FISH_BEHAVIORS.NORMAL
+      behavior: FISH_BEHAVIORS.NORMAL,
+      spawnFromEdge: true // 从屏幕边界生成
     });
     setupFishCallbacks(fish);
     fishes.push(fish);
+    if (fishContainer) fishContainer.addChild(fish.sprite);
   }
   
-  // 创建会逃跑的鱼
-  for (let i = 0; i < 4; i++) {
+  // 创建会逃跑的鱼 - 减少30%的数量
+  const escapeFishCount = Math.floor(createCount * 0.25); // 约25%是逃跑鱼
+  for (let i = 0; i < escapeFishCount; i++) {
+    if (fishes.length >= targetCount) break;
+    
     const fishType = (i % 4 + 1).toString();
     const fish = new Fish(fishType, {
       size: 0.4,
       health: 1,
       speed: 3,
-      behavior: FISH_BEHAVIORS.ESCAPE
+      behavior: FISH_BEHAVIORS.ESCAPE,
+      spawnFromEdge: true // 从屏幕边界生成
     });
     setupFishCallbacks(fish);
     fishes.push(fish);
+    if (fishContainer) fishContainer.addChild(fish.sprite);
   }
   
-  // 创建会反击的鱼
-  for (let i = 0; i < 2; i++) {
+  // 创建会反击的鱼 - 减少30%的数量
+  const aggressiveFishCount = Math.floor(createCount * 0.15); // 约15%是反击鱼
+  for (let i = 0; i < aggressiveFishCount; i++) {
+    if (fishes.length >= targetCount) break;
+    
     const fishType = (i % 4 + 1).toString();
     const fish = new Fish(fishType, {
       size: 0.7,
       health: 2,
-      behavior: FISH_BEHAVIORS.AGGRESSIVE
+      behavior: FISH_BEHAVIORS.AGGRESSIVE,
+      spawnFromEdge: true // 从屏幕边界生成
     });
     setupFishCallbacks(fish);
     fishes.push(fish);
+    if (fishContainer) fishContainer.addChild(fish.sprite);
   }
   
-  // 创建随机移动的鱼
-  for (let i = 0; i < 2; i++) {
+  // 创建随机移动的鱼 - 减少30%的数量
+  const erraticFishCount = Math.ceil(createCount * 0.1); // 约10%是随机移动鱼
+  for (let i = 0; i < erraticFishCount; i++) {
+    if (fishes.length >= targetCount) break;
+    
     const fishType = (i % 4 + 1).toString();
     const fish = new Fish(fishType, {
       size: 0.6,
       health: 1,
-      behavior: FISH_BEHAVIORS.ERRATIC
+      behavior: FISH_BEHAVIORS.ERRATIC,
+      spawnFromEdge: true // 从屏幕边界生成
     });
     setupFishCallbacks(fish);
     fishes.push(fish);
+    if (fishContainer) fishContainer.addChild(fish.sprite);
   }
+  
+  console.log(`鱼群创建完成，当前共有${fishes.length}条鱼`);
 }
 
 /**
@@ -379,22 +420,38 @@ function setupFishCallbacks(fish: any) {
         fish.sprite.parent.removeChild(fish.sprite);
       }
       
-      // 创建一条新鱼替换死亡的鱼
-      const fishType = (Math.floor(random() * 4) + 1).toString();
-      const behaviors = Object.values(FISH_BEHAVIORS);
-      const newBehavior = behaviors[Math.floor(random() * behaviors.length)];
+      // 从数组中移除该鱼
+      fishes.splice(index, 1);
       
-      const newFish = new Fish(fishType, {
-        size: 0.4 + random() * 0.3,
-        health: Math.ceil(random() * 2),
-        behavior: newBehavior
-      });
+      console.log(`鱼被击杀并移除，当前剩余${fishes.length}条鱼`);
       
-      setupFishCallbacks(newFish);
-      fishContainer.addChild(newFish.sprite);
-      fishes[index] = newFish;
-      
-      console.log(`鱼被击杀并替换，新鱼类型: ${fishType}, 习性: ${newBehavior}`);
+      // 延迟1秒后创建新鱼，只有当游戏处于开始状态时才创建
+      if (isGameStarted) {
+        setTimeout(() => {
+          // 检查当前鱼的数量是否已达到上限
+          if (fishes.length < MAX_FISH_COUNT) {
+            // 创建一条新鱼
+            const fishType = (Math.floor(random() * 4) + 1).toString();
+            const behaviors = Object.values(FISH_BEHAVIORS);
+            const newBehavior = behaviors[Math.floor(random() * behaviors.length)];
+            
+            const newFish = new Fish(fishType, {
+              size: 0.4 + random() * 0.3,
+              health: Math.ceil(random() * 2),
+              behavior: newBehavior,
+              spawnFromEdge: true // 从屏幕边界生成
+            });
+            
+            setupFishCallbacks(newFish);
+            fishContainer.addChild(newFish.sprite);
+            fishes.push(newFish);
+            
+            console.log(`延迟1秒后创建新鱼，类型: ${fishType}, 习性: ${newBehavior}`);
+          } else {
+            console.log(`鱼的数量已达到上限(${MAX_FISH_COUNT})，不再创建新鱼`);
+          }
+        }, FISH_RESPAWN_DELAY);
+      }
     }
   };
 }

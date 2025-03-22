@@ -34,7 +34,21 @@ class Fish {
     // 移动属性
     this.baseSpeed = options.speed || (1 + random()) * 2;
     this.speed = this.baseSpeed;
-    this.direction = options.direction || random() * PIXI.PI_2;
+    
+    // 从边界生成的位置和方向
+    if (options.spawnFromEdge === true) {
+      const { position, direction } = this.getRandomEdgePosition();
+      this.sprite.position.set(position.x, position.y);
+      this.direction = direction;
+    } else {
+      // 使用传入的方向或随机方向
+      this.direction = options.direction || random() * PIXI.PI_2;
+      // 初始位置
+      const x = options.x || random() * screen.width;
+      const y = options.y || random() * screen.height;
+      this.sprite.position.set(x, y);
+    }
+    
     this.targetDirection = this.direction; // 目标方向，用于平滑转向
     this.turnSpeed = options.turnSpeed || random() - 0.8;
     this.rotationSpeed = 0.01; // 正常旋转速度
@@ -50,17 +64,54 @@ class Fish {
     this.isDeathAnimating = false; // 死亡动画播放中
     this.deathAnimProgress = 0; // 死亡动画进度
     this.pixelateFilter = new PixelateFilter(); // 像素化滤镜
-    this.pixelateFilter.size = 1; // 初始像素大小
+    this.pixelateFilter.size = 1;
     
     // 创建轮廓滤镜，但初始不应用
     this.outlineFilter = new OutlineFilter(2, 0xFF0000, 0);
     // 满血状态下不应用轮廓滤镜
     this.sprite.filters = [];
+  }
+  
+  /**
+   * 从屏幕边界随机生成位置和方向
+   * @returns {{position: {x: number, y: number}, direction: number}} - 位置和方向
+   */
+  getRandomEdgePosition() {
+    // 边界偏移量，确保鱼完全在屏幕外
+    const offset = 50;
     
-    // 初始位置
-    const x = options.x || random() * screen.width;
-    const y = options.y || random() * screen.height;
-    this.sprite.position.set(x, y);
+    // 随机选择一个边界（0-上, 1-右, 2-下, 3-左）
+    const edge = Math.floor(random() * 4);
+    
+    let x, y, direction;
+    
+    switch (edge) {
+      case 0: // 上边界
+        x = random() * screen.width;
+        y = -offset;
+        direction = (PI / 2) + (random() * PI / 4 - PI / 8); // 向下方向，有一定角度偏移
+        break;
+      case 1: // 右边界
+        x = screen.width + offset;
+        y = random() * screen.height;
+        direction = PI + (random() * PI / 4 - PI / 8); // 向左方向，有一定角度偏移
+        break;
+      case 2: // 下边界
+        x = random() * screen.width;
+        y = screen.height + offset;
+        direction = (PI * 3 / 2) + (random() * PI / 4 - PI / 8); // 向上方向，有一定角度偏移
+        break;
+      case 3: // 左边界
+        x = -offset;
+        y = random() * screen.height;
+        direction = 0 + (random() * PI / 4 - PI / 8); // 向右方向，有一定角度偏移
+        break;
+    }
+    
+    return {
+      position: { x, y },
+      direction: direction
+    };
   }
   
   /**
