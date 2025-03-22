@@ -84,6 +84,16 @@ class Toast extends PIXI.Container {
     if (parent) {
       parent.addChild(this);
       this.parent = parent;
+      
+      // 设置高层级确保Toast显示在最上层
+      this.zIndex = 1000;
+      
+      // 确保父容器开启了sortableChildren
+      if (parent.sortableChildren === undefined || parent.sortableChildren === false) {
+        parent.sortableChildren = true;
+        // 手动触发排序，确保zIndex立即生效
+        parent.sortChildren();
+      }
     }
     
     // 创建背景

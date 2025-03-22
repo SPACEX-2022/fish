@@ -34,6 +34,7 @@ const {max, random, PI, sin, cos} = Math
 
 function init() {
   root = new PIXI.Container()
+  root.sortableChildren = true // 确保子元素按zIndex排序
 
   const bed = PIXI.Sprite.from('bkg.jpg')
   bed.zIndex = -1

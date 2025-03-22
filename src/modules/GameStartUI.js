@@ -2,6 +2,7 @@ import * as PIXI from 'pixi.js';
 import { screen } from '~/core';
 import { animate } from 'popmotion';
 import { Button } from './ui';
+import { showToast } from './ui';
 
 /**
  * 游戏开始界面
@@ -82,8 +83,21 @@ class GameStartUI {
    * 多人模式按钮点击处理
    */
   onMultiPlayerClick() {
-    console.log('开始多人模式');
+    console.log('多人模式开发中');
+    
+    // 使用Toast组件显示提示
+    if (this.container.parent) {
+      showToast({
+        text: '正在开发中，敬请期待!',
+        type: 'info',
+        duration: 2000,
+        parent: this.container.parent
+      });
+    }
+    
+    // 如果有回调，在最后才调用
     if (typeof this.options.onMultiPlayerStart === 'function') {
+      // 注意：不隐藏UI，因为这只是一个提示
       // this.hide();
       this.options.onMultiPlayerStart();
     }
