@@ -1,0 +1,17 @@
+{
+    "name": "fish-server",
+    "version": "1.0.0",
+    "description": "",
+    "type": "module",
+    "main": "index.ts",
+    "scripts": {
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+    },
+    "dependencies": {
+    }
+  }
+  
