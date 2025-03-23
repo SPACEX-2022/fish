@@ -631,7 +631,7 @@ class GameStartUI {
       this.userProfileDialog.parent.removeChild(this.userProfileDialog);
     }
     
-    // 销毁微信原生按钮
+    // 移除微信原生按钮
     if (this.wxUserInfoButton) {
       this.wxUserInfoButton.destroy();
       this.wxUserInfoButton = null;
@@ -668,7 +668,7 @@ class GameStartUI {
    * 多人模式按钮点击处理
    */
   onMultiPlayerClick() {
-    console.log('多人模式开发中');
+    console.log('多人模式点击');
     
     // 确保已登录
     if (!this.isLoggedIn) {
@@ -676,19 +676,512 @@ class GameStartUI {
       return;
     }
     
-    // 使用Toast组件显示提示
-    if (this.container.parent) {
-      showToast({
-        text: '正在开发中，敬请期待!',
-        type: 'info',
-        duration: 2000,
-        parent: this.container.parent
-      });
-    }
+    // 显示多人模式选项弹窗
+    this.showMultiplayerOptionsDialog();
     
     if (typeof this.options.onMultiPlayerStart === 'function') {
-      this.options.onMultiPlayerStart();
+      // 此处先不调用开始回调，等用户选择玩法后再调用
+      // this.options.onMultiPlayerStart();
     }
+  }
+  
+  /**
+   * 创建多人模式选项弹窗
+   */
+  createMultiplayerOptionsDialog() {
+    // 如果已经创建过，不重复创建
+    if (this.multiplayerOptionsDialog) return;
+    
+    // 创建弹窗容器
+    this.multiplayerOptionsDialog = new PIXI.Container();
+    this.multiplayerOptionsDialog.zIndex = 200;
+    
+    // 创建半透明背景
+    const background = new PIXI.Graphics();
+    background.beginFill(0x000000, 0.7);
+    background.drawRect(-screen.width/2, -screen.height/2, screen.width, screen.height);
+    background.endFill();
+    
+    // 创建弹窗面板
+    const panel = new PIXI.Graphics();
+    panel.beginFill(0xFFFFFF);
+    panel.lineStyle(2, 0x999999);
+    panel.drawRoundedRect(-200, -150, 400, 300, 10);
+    panel.endFill();
+    
+    // 创建标题文本
+    const title = new PIXI.Text("多人模式", {
+      fontFamily: defaultFontFamily,
+      fontSize: 20,
+      fontWeight: "bold",
+      fill: 0x333333
+    });
+    title.anchor.set(0.5, 0);
+    title.position.set(0, -120);
+    
+    // 创建在线匹配按钮
+    this.onlineMatchBtn = new Button({
+      text: '在线匹配',
+      scale: 0.7,
+      onClick: () => {
+        this.onOnlineMatchClick();
+      }
+    });
+    this.onlineMatchBtn.position.set(0, -30);
+    
+    // 创建创建房间按钮
+    this.createRoomBtn = new Button({
+      text: '创建房间',
+      scale: 0.7,
+      onClick: () => {
+        this.onCreateRoomClick();
+      }
+    });
+    this.createRoomBtn.position.set(0, 50);
+    
+    // 添加到弹窗容器
+    this.multiplayerOptionsDialog.addChild(background, panel, title, this.onlineMatchBtn, this.createRoomBtn);
+    
+    // 默认隐藏
+    this.multiplayerOptionsDialog.visible = false;
+  }
+  
+  /**
+   * 显示多人模式选项弹窗
+   */
+  showMultiplayerOptionsDialog() {
+    // 创建弹窗(如果未创建)
+    this.createMultiplayerOptionsDialog();
+    
+    if (!this.multiplayerOptionsDialog.parent && this.container.parent) {
+      this.container.parent.addChild(this.multiplayerOptionsDialog);
+    }
+    
+    // 设置位置
+    this.multiplayerOptionsDialog.position.set(screen.width / 2, screen.height / 2);
+    this.multiplayerOptionsDialog.visible = true;
+  }
+  
+  /**
+   * 隐藏多人模式选项弹窗
+   */
+  hideMultiplayerOptionsDialog() {
+    if (!this.multiplayerOptionsDialog) return;
+    
+    this.multiplayerOptionsDialog.visible = false;
+  }
+  
+  /**
+   * 在线匹配按钮点击处理
+   */
+  onOnlineMatchClick() {
+    console.log('在线匹配点击');
+    
+    // 隐藏选项弹窗
+    this.hideMultiplayerOptionsDialog();
+    
+    // 显示匹配中弹窗
+    this.showMatchingDialog();
+  }
+  
+  /**
+   * 创建匹配中弹窗
+   */
+  createMatchingDialog() {
+    // 如果已经创建过，不重复创建
+    if (this.matchingDialog) return;
+    
+    // 创建弹窗容器
+    this.matchingDialog = new PIXI.Container();
+    this.matchingDialog.zIndex = 200;
+    
+    // 创建半透明背景
+    const background = new PIXI.Graphics();
+    background.beginFill(0x000000, 0.7);
+    background.drawRect(-screen.width/2, -screen.height/2, screen.width, screen.height);
+    background.endFill();
+    
+    // 创建弹窗面板
+    const panel = new PIXI.Graphics();
+    panel.beginFill(0xFFFFFF);
+    panel.lineStyle(2, 0x999999);
+    panel.drawRoundedRect(-200, -150, 400, 300, 10);
+    panel.endFill();
+    
+    // 创建标题文本
+    const title = new PIXI.Text("匹配中", {
+      fontFamily: defaultFontFamily,
+      fontSize: 20,
+      fontWeight: "bold",
+      fill: 0x333333
+    });
+    title.anchor.set(0.5, 0);
+    title.position.set(0, -120);
+    
+    // 创建状态文本
+    this.matchingStatusText = new PIXI.Text("正在匹配中...", {
+      fontFamily: defaultFontFamily,
+      fontSize: 16,
+      fill: 0x333333
+    });
+    this.matchingStatusText.anchor.set(0.5, 0);
+    this.matchingStatusText.position.set(0, -50);
+    
+    // 创建倒计时文本
+    this.matchingCountdownText = new PIXI.Text("60", {
+      fontFamily: defaultFontFamily,
+      fontSize: 32,
+      fontWeight: "bold",
+      fill: 0x333333
+    });
+    this.matchingCountdownText.anchor.set(0.5, 0);
+    this.matchingCountdownText.position.set(0, 0);
+    
+    // 创建取消按钮
+    this.cancelMatchBtn = new Button({
+      text: '取消',
+      scale: 0.7,
+      onClick: () => {
+        this.onCancelMatchClick();
+      }
+    });
+    this.cancelMatchBtn.position.set(0, 80);
+    
+    // 创建再次匹配按钮（默认隐藏）
+    this.retryMatchBtn = new Button({
+      text: '再次匹配',
+      scale: 0.7,
+      onClick: () => {
+        this.onRetryMatchClick();
+      }
+    });
+    this.retryMatchBtn.position.set(100, 80);
+    this.retryMatchBtn.visible = false;
+    
+    // 添加到弹窗容器
+    this.matchingDialog.addChild(
+      background, 
+      panel, 
+      title, 
+      this.matchingStatusText, 
+      this.matchingCountdownText,
+      this.cancelMatchBtn,
+      this.retryMatchBtn
+    );
+    
+    // 默认隐藏
+    this.matchingDialog.visible = false;
+  }
+  
+  /**
+   * 显示匹配中弹窗并开始倒计时
+   */
+  showMatchingDialog() {
+    // 创建弹窗(如果未创建)
+    this.createMatchingDialog();
+    
+    if (!this.matchingDialog.parent && this.container.parent) {
+      this.container.parent.addChild(this.matchingDialog);
+    }
+    
+    // 重置匹配状态
+    this.matchingStatusText.text = "正在匹配中...";
+    this.matchingCountdownText.text = "60";
+    this.cancelMatchBtn.position.set(0, 80);
+    this.cancelMatchBtn.visible = true;
+    this.retryMatchBtn.visible = false;
+    
+    // 设置位置
+    this.matchingDialog.position.set(screen.width / 2, screen.height / 2);
+    this.matchingDialog.visible = true;
+    
+    // 开始倒计时
+    this.startMatchingCountdown();
+  }
+  
+  /**
+   * 开始匹配倒计时
+   */
+  startMatchingCountdown() {
+    // 清除之前的定时器
+    if (this.matchingCountdownTimer) {
+      clearInterval(this.matchingCountdownTimer);
+    }
+    
+    let countdown = 60;
+    this.matchingCountdownText.text = countdown.toString();
+    
+    this.matchingCountdownTimer = setInterval(() => {
+      countdown--;
+      this.matchingCountdownText.text = countdown.toString();
+      
+      if (countdown <= 0) {
+        clearInterval(this.matchingCountdownTimer);
+        this.onMatchingTimeout();
+      }
+    }, 1000);
+  }
+  
+  /**
+   * 匹配超时处理
+   */
+  onMatchingTimeout() {
+    console.log('匹配超时');
+    
+    // 更新UI状态
+    this.matchingStatusText.text = "匹配失败，请重试";
+    this.matchingCountdownText.text = "";
+    
+    // 调整按钮位置，显示再次匹配按钮
+    this.cancelMatchBtn.position.set(-100, 80);
+    this.retryMatchBtn.visible = true;
+  }
+  
+  /**
+   * 隐藏匹配中弹窗并停止倒计时
+   */
+  hideMatchingDialog() {
+    if (!this.matchingDialog) return;
+    
+    // 停止倒计时
+    if (this.matchingCountdownTimer) {
+      clearInterval(this.matchingCountdownTimer);
+      this.matchingCountdownTimer = null;
+    }
+    
+    this.matchingDialog.visible = false;
+  }
+  
+  /**
+   * 取消匹配按钮点击处理
+   */
+  onCancelMatchClick() {
+    console.log('取消匹配');
+    
+    // 停止倒计时并隐藏弹窗
+    this.hideMatchingDialog();
+    
+    // 返回多人模式选项弹窗
+    this.showMultiplayerOptionsDialog();
+  }
+  
+  /**
+   * 再次匹配按钮点击处理
+   */
+  onRetryMatchClick() {
+    console.log('再次匹配');
+    
+    // 重新开始匹配
+    this.showMatchingDialog();
+  }
+  
+  /**
+   * 创建房间按钮点击处理
+   */
+  onCreateRoomClick() {
+    console.log('创建房间点击');
+    
+    // 隐藏选项弹窗
+    this.hideMultiplayerOptionsDialog();
+    
+    // 显示房间界面
+    this.showRoomDialog();
+  }
+  
+  /**
+   * 创建房间界面
+   */
+  createRoomDialog() {
+    // 如果已经创建过，不重复创建
+    if (this.roomDialog) return;
+    
+    // 创建弹窗容器
+    this.roomDialog = new PIXI.Container();
+    this.roomDialog.zIndex = 200;
+    
+    // 创建半透明背景 - 仍然覆盖整个屏幕
+    const background = new PIXI.Graphics();
+    background.beginFill(0x000000, 0.7);
+    background.drawRect(-screen.width/2, -screen.height/2, screen.width, screen.height);
+    background.endFill();
+    
+    // 创建弹窗面板 - 减小高度
+    const panel = new PIXI.Graphics();
+    panel.beginFill(0xFFFFFF);
+    panel.lineStyle(2, 0x999999);
+    panel.drawRoundedRect(-240, -140, 480, 280, 10);
+    panel.endFill();
+    
+    // 创建标题文本
+    const title = new PIXI.Text("房间", {
+      fontFamily: defaultFontFamily,
+      fontSize: 20,
+      fontWeight: "bold",
+      fill: 0x333333
+    });
+    title.anchor.set(0.5, 0);
+    title.position.set(0, -120);
+    
+    // 创建玩家位置容器
+    this.playerSlotsContainer = new PIXI.Container();
+    
+    // 创建4个玩家位置 - 改为一排展示
+    this.playerSlots = [];
+    const slotPositions = [
+      {x: -180, y: -40},
+      {x: -60, y: -40},
+      {x: 60, y: -40},
+      {x: 180, y: -40}
+    ];
+    
+    for (let i = 0; i < 4; i++) {
+      const slot = this.createPlayerSlot(i);
+      slot.position.set(slotPositions[i].x, slotPositions[i].y);
+      this.playerSlotsContainer.addChild(slot);
+      this.playerSlots.push(slot);
+    }
+    
+    // 创建返回按钮 - 调整位置
+    this.backToOptionsBtn = new Button({
+      text: '返回',
+      scale: 0.7,
+      onClick: () => {
+        this.onBackToOptionsClick();
+      }
+    });
+    this.backToOptionsBtn.position.set(-100, 80);
+    
+    // 创建邀请好友按钮 - 调整位置
+    this.inviteFriendBtn = new Button({
+      text: '邀请好友',
+      scale: 0.7,
+      onClick: () => {
+        this.onInviteFriendClick();
+      }
+    });
+    this.inviteFriendBtn.position.set(100, 80);
+    
+    // 添加到弹窗容器
+    this.roomDialog.addChild(
+      background, 
+      panel, 
+      title, 
+      this.playerSlotsContainer,
+      this.backToOptionsBtn,
+      this.inviteFriendBtn
+    );
+    
+    // 默认隐藏
+    this.roomDialog.visible = false;
+  }
+  
+  /**
+   * 创建玩家位置槽
+   * @param {number} index - 位置索引
+   * @returns {PIXI.Container} 玩家位置容器
+   */
+  createPlayerSlot(index) {
+    const slot = new PIXI.Container();
+    
+    // 创建头像背景 - 缩小尺寸以适应一排显示
+    const avatarBg = new PIXI.Graphics();
+    avatarBg.beginFill(0xEEEEEE);
+    avatarBg.lineStyle(2, 0x999999);
+    avatarBg.drawRoundedRect(-30, -30, 60, 60, 8);
+    avatarBg.endFill();
+    slot.addChild(avatarBg);
+    
+    // 如果是第一个位置且有用户信息，显示当前用户头像
+    if (index === 0 && this.userProfile) {
+      // 创建头像 - 调整大小
+      const avatar = PIXI.Sprite.from(this.userProfile.avatarUrl);
+      avatar.width = 50;
+      avatar.height = 50;
+      avatar.anchor.set(0.5);
+      avatar.position.set(0, 0);
+      slot.addChild(avatar);
+      
+      // 创建用户名文本 - 调整位置和大小
+      const nameText = new PIXI.Text(this.userProfile.nickName, {
+        fontFamily: defaultFontFamily,
+        fontSize: 12,
+        fill: 0x333333,
+        wordWrap: true,
+        wordWrapWidth: 60
+      });
+      nameText.anchor.set(0.5, 0);
+      nameText.position.set(0, 35);
+      slot.addChild(nameText);
+    } else {
+      // 创建空位文本
+      const emptyText = new PIXI.Text("无", {
+        fontFamily: defaultFontFamily,
+        fontSize: 14,
+        fill: 0x999999
+      });
+      emptyText.anchor.set(0.5);
+      emptyText.position.set(0, 0);
+      slot.addChild(emptyText);
+    }
+    
+    return slot;
+  }
+  
+  /**
+   * 显示房间界面
+   */
+  showRoomDialog() {
+    // 创建弹窗(如果未创建)
+    this.createRoomDialog();
+    
+    if (!this.roomDialog.parent && this.container.parent) {
+      this.container.parent.addChild(this.roomDialog);
+    }
+    
+    // 设置位置
+    this.roomDialog.position.set(screen.width / 2, screen.height / 2);
+    this.roomDialog.visible = true;
+  }
+  
+  /**
+   * 隐藏房间界面
+   */
+  hideRoomDialog() {
+    if (!this.roomDialog) return;
+    
+    this.roomDialog.visible = false;
+  }
+  
+  /**
+   * 返回多人模式选项按钮点击处理
+   */
+  onBackToOptionsClick() {
+    console.log('返回多人模式选项');
+    
+    // 隐藏房间界面
+    this.hideRoomDialog();
+    
+    // 显示多人模式选项弹窗
+    this.showMultiplayerOptionsDialog();
+  }
+  
+  /**
+   * 邀请好友按钮点击处理
+   */
+  onInviteFriendClick() {
+    console.log('邀请好友');
+    
+    // 调用微信分享API
+    wx.shareAppMessage({
+      title: '来和我一起玩捕鱼游戏吧！',
+      imageUrl: 'https://mmocgame.qpic.cn/wechatgame/MyliadyoiaBibeD9ibDLesgO8Nw1ebJmGPbo09N3icmnR0gC6hH0UDUnicpQEaIZCTicZAw/0', // 分享图片
+      success: (res) => {
+        console.log('分享成功', res);
+      },
+      fail: (err) => {
+        console.error('分享失败', err);
+      }
+    });
   }
   
   /**
@@ -751,7 +1244,7 @@ class GameStartUI {
     if (!this.isVisible) return;
     
     // 如果隐私弹窗可见，只处理隐私弹窗的点击
-    if (this.privacyDialog.visible) {
+    if (this.privacyDialog && this.privacyDialog.visible) {
       // 检查是否点击了同意按钮
       if (this._checkPrivacyAgreeButtonHit(x, y)) {
         if (isDown) {
@@ -763,7 +1256,70 @@ class GameStartUI {
       return;
     }
     
-    // 检查是否点击了按钮
+    // 如果多人模式弹窗可见
+    if (this.multiplayerOptionsDialog && this.multiplayerOptionsDialog.visible) {
+      // 检查是否点击了在线匹配按钮
+      if (this._checkButtonHit(x, y, this.multiplayerOptionsDialog, this.onlineMatchBtn)) {
+        if (isDown) {
+          this.onlineMatchBtn._onPointerDown();
+        } else {
+          this.onlineMatchBtn._onPointerUp();
+        }
+      }
+      // 检查是否点击了创建房间按钮
+      else if (this._checkButtonHit(x, y, this.multiplayerOptionsDialog, this.createRoomBtn)) {
+        if (isDown) {
+          this.createRoomBtn._onPointerDown();
+        } else {
+          this.createRoomBtn._onPointerUp();
+        }
+      }
+      return;
+    }
+    
+    // 如果匹配弹窗可见
+    if (this.matchingDialog && this.matchingDialog.visible) {
+      // 检查是否点击了取消按钮
+      if (this._checkButtonHit(x, y, this.matchingDialog, this.cancelMatchBtn)) {
+        if (isDown) {
+          this.cancelMatchBtn._onPointerDown();
+        } else {
+          this.cancelMatchBtn._onPointerUp();
+        }
+      }
+      // 检查是否点击了再次匹配按钮
+      else if (this.retryMatchBtn.visible && this._checkButtonHit(x, y, this.matchingDialog, this.retryMatchBtn)) {
+        if (isDown) {
+          this.retryMatchBtn._onPointerDown();
+        } else {
+          this.retryMatchBtn._onPointerUp();
+        }
+      }
+      return;
+    }
+    
+    // 如果房间弹窗可见
+    if (this.roomDialog && this.roomDialog.visible) {
+      // 检查是否点击了返回按钮
+      if (this._checkButtonHit(x, y, this.roomDialog, this.backToOptionsBtn)) {
+        if (isDown) {
+          this.backToOptionsBtn._onPointerDown();
+        } else {
+          this.backToOptionsBtn._onPointerUp();
+        }
+      }
+      // 检查是否点击了邀请好友按钮
+      else if (this._checkButtonHit(x, y, this.roomDialog, this.inviteFriendBtn)) {
+        if (isDown) {
+          this.inviteFriendBtn._onPointerDown();
+        } else {
+          this.inviteFriendBtn._onPointerUp();
+        }
+      }
+      return;
+    }
+    
+    // 检查是否点击了主界面按钮
     const hitButton = this._checkTouchHit(x, y);
     
     if (hitButton === 'single') {
@@ -779,6 +1335,39 @@ class GameStartUI {
         this.multiPlayerBtn._onPointerUp();
       }
     }
+  }
+  
+  /**
+   * 通用检查按钮是否被点击
+   * @param {number} x - 触摸X坐标
+   * @param {number} y - 触摸Y坐标
+   * @param {PIXI.Container} dialogContainer - 弹窗容器
+   * @param {Button} button - 按钮对象
+   * @returns {boolean} 是否命中
+   * @private
+   */
+  _checkButtonHit(x, y, dialogContainer, button) {
+    // 计算按钮全局位置
+    const dialogPos = {
+      x: screen.width / 2 + dialogContainer.position.x,
+      y: screen.height / 2 + dialogContainer.position.y
+    };
+    
+    const btnPos = {
+      x: dialogPos.x + button.position.x,
+      y: dialogPos.y + button.position.y
+    };
+    
+    // 获取按钮的点击区域
+    const btnHitArea = button.hitArea;
+    
+    // 检查是否点击了按钮
+    return (
+      x >= btnPos.x + btnHitArea.x &&
+      x <= btnPos.x + btnHitArea.x + btnHitArea.width &&
+      y >= btnPos.y + btnHitArea.y &&
+      y <= btnPos.y + btnHitArea.y + btnHitArea.height
+    );
   }
   
   /**
