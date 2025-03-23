@@ -379,7 +379,8 @@ export class HttpClient {
  * 默认HTTP客户端实例
  */
 const http = new HttpClient({
-  baseURL: 'https://api.example.com/api', // 在实际环境中应当根据不同环境配置
+  baseURL: 'http://localhost:3000/api', // 本地环境
+  // baseURL: 'https://www.joy-stream.asia/api', // 生产环境
   retry: 1,
   retryDelay: 1500
 });

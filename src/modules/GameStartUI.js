@@ -3,6 +3,9 @@ import { screen } from '~/core';
 import { animate } from 'popmotion';
 import { Button } from './ui';
 import { showToast } from './ui';
+import { wxLogin } from '../api/auth'; // 导入登录API
+import { HeartbeatConnection } from '../api/heartbeat'; // 导入心跳连接API
+import http from '../api/index'; // 导入HTTP客户端
 
 /**
  * 游戏开始界面
@@ -66,41 +69,42 @@ class GameStartUI {
     
     // 状态标志
     this.isVisible = false;
+    this.isLoggedIn = false;
+    this.heartbeatConnection = null;
+    
+    // 创建连接状态UI（右上角）
+    this.createConnectionStatusUI();
+
+    // 在构造完成后自动开始登录流程
+    this.autoLogin = true;
   }
   
   /**
-   * 单人模式按钮点击处理
+   * 创建连接状态UI显示
    */
-  onSinglePlayerClick() {
-    console.log('开始单人模式');
-    if (typeof this.options.onSinglePlayerStart === 'function') {
-      this.hide();
-      this.options.onSinglePlayerStart();
-    }
-  }
-  
-  /**
-   * 多人模式按钮点击处理
-   */
-  onMultiPlayerClick() {
-    console.log('多人模式开发中');
+  createConnectionStatusUI() {
+    // 创建连接状态容器（右上角）
+    this.connectionStatusUI = new PIXI.Container();
+    this.connectionStatusUI.position.set(screen.width - 60, 20);
     
-    // 使用Toast组件显示提示
-    if (this.container.parent) {
-      showToast({
-        text: '正在开发中，敬请期待!',
-        type: 'info',
-        duration: 2000,
-        parent: this.container.parent
-      });
-    }
+    // 状态指示圆点
+    this.statusIndicator = new PIXI.Graphics();
+    this.statusIndicator.beginFill(0xFF0000); // 默认红色（离线）
+    this.statusIndicator.drawCircle(0, 0, 6);
+    this.statusIndicator.endFill();
     
-    // 如果有回调，在最后才调用
-    if (typeof this.options.onMultiPlayerStart === 'function') {
-      // 注意：不隐藏UI，因为这只是一个提示
-      // this.hide();
-      this.options.onMultiPlayerStart();
-    }
+    // 状态文本
+    this.statusText = new PIXI.Text("离线", {
+      fontFamily: "Arial",
+      fontSize: 12,
+      fill: 0xFFFFFF
+    });
+    this.statusText.anchor.set(0, 0.5);
+    this.statusText.position.set(10, 0);
+    
+    // 添加到状态容器
+    this.connectionStatusUI.addChild(this.statusIndicator, this.statusText);
+    this.connectionStatusUI.visible = false; // 默认隐藏，登录后显示
   }
   
   /**
@@ -111,8 +115,127 @@ class GameStartUI {
     if (this.isVisible) return;
     
     parent.addChild(this.container);
+    
+    // 添加连接状态UI到父容器（不受GameStartUI隐藏影响）
+    if (!this.connectionStatusUI.parent) {
+      parent.addChild(this.connectionStatusUI);
+    }
+    
     this.isVisible = true;
     this._updatePosition();
+    
+    // 如果设置了自动登录，进行登录
+    if (this.autoLogin && !this.isLoggedIn) {
+      this.login();
+    }
+  }
+  
+  /**
+   * 登录流程
+   */
+  async login() {
+    try {
+      // 显示登录提示
+      wx.showLoading({
+        title: "正在登录中...",
+        mask: true
+      });
+      
+      // 调用微信登录获取code
+      const loginResult = await wx.login();
+      
+      if (loginResult && loginResult.code) {
+        // 调用服务器登录接口
+        const loginResponse = await wxLogin({
+          code: loginResult.code
+        });
+        
+        console.log('登录成功', loginResponse);
+        this.isLoggedIn = true;
+        
+        // 登录成功后建立心跳连接
+        this.setupHeartbeatConnection();
+        
+        // 登录成功提示
+        wx.showToast({
+          title: "登录成功",
+          icon: "success",
+          duration: 1500
+        });
+      } else {
+        throw new Error("获取微信登录code失败");
+      }
+    } catch (error) {
+      console.error("登录失败", error);
+      wx.showToast({
+        title: "登录失败，请重试",
+        icon: "none",
+        duration: 2000
+      });
+    } finally {
+      // 关闭登录提示
+      wx.hideLoading();
+    }
+  }
+  
+  /**
+   * 设置心跳连接
+   */
+  setupHeartbeatConnection() {
+    // 获取API基础URL和令牌
+    const serverUrl = http.getBaseURL ? http.getBaseURL() : 'https://api.example.com/api';
+    const token = http.getToken ? http.getToken() : '';
+    
+    if (!token) {
+      console.error('建立心跳连接失败：未获取到token');
+      return;
+    }
+    
+    // 创建心跳连接实例
+    this.heartbeatConnection = new HeartbeatConnection(serverUrl, token);
+    
+    // 注册事件处理函数
+    this.heartbeatConnection.onConnect(() => {
+      this.updateConnectionStatus(true);
+    });
+    
+    this.heartbeatConnection.onDisconnect(() => {
+      this.updateConnectionStatus(false);
+    });
+    
+    this.heartbeatConnection.onError((error) => {
+      console.error('心跳连接错误', error);
+      this.updateConnectionStatus(false);
+    });
+    
+    // 开始连接
+    this.heartbeatConnection.connect();
+    
+    // 显示连接状态UI
+    this.connectionStatusUI.visible = true;
+    this.updateConnectionStatus(false); // 初始状态为离线
+  }
+  
+  /**
+   * 更新连接状态UI
+   * @param {boolean} isConnected - 是否已连接
+   */
+  updateConnectionStatus(isConnected) {
+    // 更新状态指示圆点颜色
+    this.statusIndicator.clear();
+    
+    if (isConnected) {
+      // 在线状态 - 绿色
+      this.statusIndicator.beginFill(0x00FF00);
+      this.statusText.text = "在线";
+    } else {
+      // 离线状态 - 红色
+      this.statusIndicator.beginFill(0xFF0000);
+      this.statusText.text = "离线";
+    }
+    
+    this.statusIndicator.drawCircle(0, 0, 6);
+    this.statusIndicator.endFill();
   }
   
   /**
@@ -126,6 +249,76 @@ class GameStartUI {
     }
     
     this.isVisible = false;
+    
+    // 注意：不要移除连接状态UI，它应该一直显示
+  }
+  
+  /**
+   * 销毁组件，清理资源
+   */
+  destroy() {
+    // 断开心跳连接
+    if (this.heartbeatConnection) {
+      this.heartbeatConnection.disconnect();
+      this.heartbeatConnection = null;
+    }
+    
+    // 移除连接状态UI
+    if (this.connectionStatusUI.parent) {
+      this.connectionStatusUI.parent.removeChild(this.connectionStatusUI);
+    }
+    
+    // 移除主容器
+    if (this.container.parent) {
+      this.container.parent.removeChild(this.container);
+    }
+    
+    // 标记为不可见
+    this.isVisible = false;
+  }
+  
+  /**
+   * 单人模式按钮点击处理
+   */
+  onSinglePlayerClick() {
+    console.log('开始单人模式');
+    // 确保已登录
+    if (!this.isLoggedIn) {
+      this.login();
+      return;
+    }
+    
+    if (typeof this.options.onSinglePlayerStart === 'function') {
+      this.hide();
+      this.options.onSinglePlayerStart();
+    }
+  }
+  
+  /**
+   * 多人模式按钮点击处理
+   */
+  onMultiPlayerClick() {
+    console.log('多人模式开发中');
+    
+    // 确保已登录
+    if (!this.isLoggedIn) {
+      this.login();
+      return;
+    }
+    
+    // 使用Toast组件显示提示
+    if (this.container.parent) {
+      showToast({
+        text: '正在开发中，敬请期待!',
+        type: 'info',
+        duration: 2000,
+        parent: this.container.parent
+      });
+    }
+    
+    if (typeof this.options.onMultiPlayerStart === 'function') {
+      this.options.onMultiPlayerStart();
+    }
   }
   
   /**
