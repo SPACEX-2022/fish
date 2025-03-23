@@ -1,4 +1,4 @@
-import { getStorage } from '../util/storage';
+import { getStorage, getStorageSync } from '../util/storage';
 
 /**
  * API模块
@@ -74,6 +74,12 @@ export interface Response<T = any> {
   header: Record<string, string>;
   /** Cookies */
   cookies: string[];
+}
+
+interface ResponseResult<T> {
+  code: number;
+  message: string;
+  result: T;
 }
 
 // 请求拦截器实现
@@ -196,9 +202,9 @@ export class HttpClient {
     }
 
     // 添加默认的Token拦截器
-    this.interceptors.request.use(async (config) => {
+    this.interceptors.request.use((config) => {
       try {
-        const token = await getStorage<string>('token');
+        const token = getStorageSync('token');
         if (token && config.header) {
           config.header = {
             ...config.header,
@@ -325,8 +331,8 @@ export class HttpClient {
   }
 
   // GET请求
-  get<T = any>(url: string, params?: Record<string, any>, config?: Partial<RequestConfig>): Promise<T> {
-    return this.request<T>({
+  get<T = any>(url: string, params?: Record<string, any>, config?: Partial<RequestConfig>) {
+    return this.request<ResponseResult<T>>({
       ...config,
       url,
       method: 'GET',
@@ -335,8 +341,8 @@ export class HttpClient {
   }
 
   // POST请求
-  post<T = any>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
-    return this.request<T>({
+  post<T = any>(url: string, data?: any, config?: Partial<RequestConfig>) {
+    return this.request<ResponseResult<T>>({
       ...config,
       url,
       method: 'POST',
@@ -345,8 +351,8 @@ export class HttpClient {
   }
 
   // PUT请求
-  put<T = any>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
-    return this.request<T>({
+  put<T = any>(url: string, data?: any, config?: Partial<RequestConfig>) {
+    return this.request<ResponseResult<T>>({
       ...config,
       url,
       method: 'PUT',
@@ -355,8 +361,8 @@ export class HttpClient {
   }
 
   // DELETE请求
-  delete<T = any>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
-    return this.request<T>({
+  delete<T = any>(url: string, data?: any, config?: Partial<RequestConfig>) {
+    return this.request<ResponseResult<T>>({
       ...config,
       url,
       method: 'DELETE',
@@ -365,8 +371,8 @@ export class HttpClient {
   }
 
   // PATCH请求
-  patch<T = any>(url: string, data?: any, config?: Partial<RequestConfig>): Promise<T> {
-    return this.request<T>({
+  patch<T = any>(url: string, data?: any, config?: Partial<RequestConfig>) {
+    return this.request<ResponseResult<T>>({
       ...config,
       url,
       method: 'PATCH',

@@ -72,39 +72,59 @@ class GameStartUI {
     this.isLoggedIn = false;
     this.heartbeatConnection = null;
     this.privacyAuthorized = false; // 添加隐私授权状态
+    this.userProfile = null; // 添加用户信息保存
     
     // 创建连接状态UI（右上角）
     this.createConnectionStatusUI();
-    
-    // 创建隐私协议弹窗
-    this.createPrivacyDialog();
 
     // 在构造完成后自动开始登录流程
     this.autoLogin = true;
+
+    wx.getPrivacySetting({
+      success: res => {
+        console.log('隐私设置', res);
+        if (res.needAuthorization) {
+          // 创建隐私协议弹窗
+          this.createPrivacyDialog();
+        } else {
+          this.privacyAuthorized = true;
+          wx.getSetting({
+            success: res => {
+              if (res.authSetting['scope.userInfo']) {
+                this.getUserProfileInfo();
+              } else {
+                this.showUserProfileButton();
+              }
+            }
+          });
+        }
+      }
+    });
   }
   
   /**
    * 创建连接状态UI显示
    */
   createConnectionStatusUI() {
-    // 创建连接状态容器（右上角）
+    // 创建连接状态容器（右下角）
     this.connectionStatusUI = new PIXI.Container();
-    this.connectionStatusUI.position.set(screen.width - 60, 20);
+    this.connectionStatusUI.position.set(screen.width - 60, screen.height - 30);
     
     // 状态指示圆点
     this.statusIndicator = new PIXI.Graphics();
     this.statusIndicator.beginFill(0xFF0000); // 默认红色（离线）
     this.statusIndicator.drawCircle(0, 0, 6);
     this.statusIndicator.endFill();
+    this.statusIndicator.position.set(0, 6); // 向下偏移6像素使其垂直居中
     
     // 状态文本
     this.statusText = new PIXI.Text("离线", {
-      fontFamily: "Arial",
+      fontFamily: defaultFontFamily,
       fontSize: 12,
       fill: 0xFFFFFF
     });
     this.statusText.anchor.set(0, 0.5);
-    this.statusText.position.set(10, 0);
+    this.statusText.position.set(10, 6); // 向下偏移6像素使其垂直居中
     
     // 添加到状态容器
     this.connectionStatusUI.addChild(this.statusIndicator, this.statusText);
@@ -175,19 +195,6 @@ class GameStartUI {
   }
   
   /**
-   * 显示隐私协议弹窗
-   */
-  showPrivacyDialog(parent) {
-    if (!this.privacyDialog.parent && parent) {
-      parent.addChild(this.privacyDialog);
-    }
-    
-    // 设置位置
-    this.privacyDialog.position.set(screen.width / 2, screen.height / 2);
-    this.privacyDialog.visible = true;
-  }
-  
-  /**
    * 隐藏隐私协议弹窗
    */
   hidePrivacyDialog() {
@@ -205,21 +212,10 @@ class GameStartUI {
       success: res => {
         console.log('隐私授权成功', res);
         this.privacyAuthorized = true;
-
-        wx.getUserInfo({
-          success: function(res) {
-            console.log('用户信息', res.userInfo)
-          },
-          fail: function(err) {
-            console.error('获取用户信息失败', err);
-          }
-        })
         this.hidePrivacyDialog();
         
-        // 授权成功后继续登录流程
-        if (this.autoLogin && !this.isLoggedIn) {
-          this.login();
-        }
+        // 隐私授权成功后获取用户信息
+        this.getUserProfileInfo();
       },
       fail: err => {
         console.error('隐私授权失败', err);
@@ -240,46 +236,211 @@ class GameStartUI {
   }
   
   /**
-   * 显示游戏开始界面
-   * @param {PIXI.Container} parent - 父容器
+   * 获取用户头像和昵称信息
    */
-  show(parent) {
-    if (this.isVisible) return;
+  getUserProfileInfo() {
+    // 显示加载提示
+    wx.showLoading({
+      title: "正在获取信息...",
+      mask: true
+    });
     
-    parent.addChild(this.container);
+    // 通过 wx.getSetting 查询用户是否已授权头像昵称信息
+    wx.getSetting({
+      success: res => {
+        if (res.authSetting['scope.userInfo']) {
+          // 已经授权，可以直接调用 getUserInfo 获取头像昵称
+          wx.getUserInfo({
+            success: profileRes => {
+              console.log('获取用户信息成功', profileRes.userInfo);
+              this.userProfile = profileRes.userInfo; // 保存用户信息
+              wx.hideLoading();
+              
+              // 获取用户信息后继续登录流程
+              if (this.autoLogin && !this.isLoggedIn) {
+                this.login();
+              }
+            },
+            fail: err => {
+              console.error('获取用户信息失败', err);
+              wx.hideLoading();
+              this.showUserProfileButton();
+            }
+          });
+        } else {
+          // 用户未授权，显示授权按钮
+          wx.hideLoading();
+          this.showUserProfileButton();
+        }
+      },
+      fail: err => {
+        console.error('获取授权状态失败', err);
+        wx.hideLoading();
+        this.showUserProfileButton();
+      }
+    });
+  }
+  
+  /**
+   * 显示获取用户信息按钮
+   */
+  showUserProfileButton() {
+    // 创建用户信息授权弹窗
+    this.createUserProfileDialog();
     
-    // 添加连接状态UI到父容器（不受GameStartUI隐藏影响）
-    if (!this.connectionStatusUI.parent) {
-      parent.addChild(this.connectionStatusUI);
+    if (this.container.parent) {
+      this.showUserProfileDialog(this.container.parent);
+    }
+  }
+  
+  /**
+   * 创建用户信息授权弹窗
+   */
+  createUserProfileDialog() {
+    // 如果已经创建过，不重复创建
+    if (this.userProfileDialog) return;
+    
+    // 创建弹窗容器
+    this.userProfileDialog = new PIXI.Container();
+    this.userProfileDialog.zIndex = 200;
+    
+    // 创建半透明背景
+    const background = new PIXI.Graphics();
+    background.beginFill(0x000000, 0.7);
+    background.drawRect(-screen.width/2, -screen.height/2, screen.width, screen.height);
+    background.endFill();
+    
+    // 创建弹窗面板
+    const panel = new PIXI.Graphics();
+    panel.beginFill(0xFFFFFF);
+    panel.lineStyle(2, 0x999999);
+    panel.drawRoundedRect(-200, -150, 400, 300, 10);
+    panel.endFill();
+    
+    // 创建标题文本
+    const title = new PIXI.Text("获取用户信息", {
+      fontFamily: defaultFontFamily,
+      fontSize: 20,
+      fontWeight: "bold",
+      fill: 0x333333
+    });
+    title.anchor.set(0.5, 0);
+    title.position.set(0, -120);
+    
+    // 创建提示文本
+    const content = new PIXI.Text(
+      "为了提供个性化体验，游戏需要获取您的头像\n和昵称信息。点击下方按钮授权并继续游戏。", 
+      {
+        fontFamily: defaultFontFamily,
+        fontSize: 14,
+        fill: 0x333333,
+        wordWrap: true,
+        wordWrapWidth: 360,
+        lineHeight: 20
+      }
+    );
+    content.anchor.set(0.5, 0);
+    content.position.set(0, -60);
+    
+    // 添加到弹窗容器
+    this.userProfileDialog.addChild(background, panel, title, content);
+    
+    // 使用微信原生按钮
+    this.createWxUserInfoButton();
+    
+    // 默认隐藏
+    this.userProfileDialog.visible = false;
+  }
+  
+  /**
+   * 创建微信原生用户信息按钮
+   */
+  createWxUserInfoButton() {
+    // 计算按钮位置（全局坐标）
+    const centerX = screen.width / 2;
+    const centerY = screen.height / 2;
+    const buttonX = centerX - 100; // 按钮宽度200，居中
+    const buttonY = centerY + 20; // 按钮在弹窗中间偏下位置
+    
+    // 创建微信原生按钮
+    this.wxUserInfoButton = wx.createUserInfoButton({
+      type: 'text',
+      text: '授权头像和昵称',
+      style: {
+        left: buttonX,
+        top: buttonY,
+        width: 200,
+        height: 50,
+        lineHeight: 50,
+        backgroundColor: '#1aad19',
+        color: '#ffffff',
+        textAlign: 'center',
+        fontSize: 16,
+        borderRadius: 4
+      }
+    });
+    
+    // 监听按钮点击
+    this.wxUserInfoButton.onTap(res => {
+      if (res.userInfo) {
+        // 用户同意授权
+        console.log('获取用户信息成功', res.userInfo);
+        this.userProfile = res.userInfo; // 保存用户信息
+        
+        // 隐藏弹窗并销毁按钮
+        this.hideUserProfileDialog();
+        
+        // 继续登录流程
+        if (this.autoLogin && !this.isLoggedIn) {
+          this.login();
+        }
+      } else {
+        // 用户拒绝授权
+        console.log('用户拒绝授权头像昵称');
+        if (this.container.parent) {
+          showToast({
+            text: '需要授权才能继续游戏',
+            type: 'warning',
+            duration: 2000,
+            parent: this.container.parent
+          });
+        }
+      }
+    });
+  }
+  
+  /**
+   * 显示用户信息授权弹窗
+   */
+  showUserProfileDialog(parent) {
+    if (!this.userProfileDialog.parent && parent) {
+      parent.addChild(this.userProfileDialog);
     }
     
-    this.isVisible = true;
-    this._updatePosition();
+    // 设置位置
+    this.userProfileDialog.position.set(screen.width / 2, screen.height / 2);
+    this.userProfileDialog.visible = true;
     
-    // 先检查隐私授权状态
-    if (!this.privacyAuthorized) {
-      // 显示隐私弹窗
-      this.showPrivacyDialog(parent);
-    } 
-    // 如果已授权且设置了自动登录，则进行登录
-    else if (this.autoLogin && !this.isLoggedIn) {
-      this.login();
-    }
+    // 确保按钮可见
+    this.wxUserInfoButton && (this.wxUserInfoButton.show());
+  }
+  
+  /**
+   * 隐藏用户信息授权弹窗
+   */
+  hideUserProfileDialog() {
+    if (!this.userProfileDialog) return;
+    
+    this.userProfileDialog.visible = false;
+    
+    // 隐藏微信原生按钮
+    this.wxUserInfoButton && (this.wxUserInfoButton.hide());
   }
   
   /**
    * 登录流程
    */
   async login() {
-    // 确保已同意隐私协议
-    if (!this.privacyAuthorized) {
-      // 如果容器有父节点，显示隐私弹窗
-      if (this.container.parent) {
-        this.showPrivacyDialog(this.container.parent);
-      }
-      return;
-    }
-    
     try {
       console.log('开始登录');
       // 显示登录提示
@@ -292,9 +453,11 @@ class GameStartUI {
       const loginResult = await wx.login();
       
       if (loginResult && loginResult.code) {
-        // 调用服务器登录接口
+        // 调用服务器登录接口，同时传递用户信息
         const loginResponse = await wxLogin({
-          code: loginResult.code
+          code: loginResult.code,
+          nickname: this.userProfile.nickName,
+          avatarUrl: this.userProfile.avatarUrl,
         });
         
         console.log('登录成功', loginResponse);
@@ -420,6 +583,17 @@ class GameStartUI {
       this.privacyDialog.parent.removeChild(this.privacyDialog);
     }
     
+    // 移除用户信息弹窗
+    if (this.userProfileDialog && this.userProfileDialog.parent) {
+      this.userProfileDialog.parent.removeChild(this.userProfileDialog);
+    }
+    
+    // 销毁微信原生按钮
+    if (this.wxUserInfoButton) {
+      this.wxUserInfoButton.destroy();
+      this.wxUserInfoButton = null;
+    }
+    
     // 移除主容器
     if (this.container.parent) {
       this.container.parent.removeChild(this.container);
@@ -434,15 +608,6 @@ class GameStartUI {
    */
   onSinglePlayerClick() {
     console.log('开始单人模式');
-    
-    // 确保已同意隐私协议
-    if (!this.privacyAuthorized) {
-      // 如果容器有父节点，显示隐私弹窗
-      if (this.container.parent) {
-        this.showPrivacyDialog(this.container.parent);
-      }
-      return;
-    }
     
     // 确保已登录
     if (!this.isLoggedIn) {
@@ -461,15 +626,6 @@ class GameStartUI {
    */
   onMultiPlayerClick() {
     console.log('多人模式开发中');
-    
-    // 确保已同意隐私协议
-    if (!this.privacyAuthorized) {
-      // 如果容器有父节点，显示隐私弹窗
-      if (this.container.parent) {
-        this.showPrivacyDialog(this.container.parent);
-      }
-      return;
-    }
     
     // 确保已登录
     if (!this.isLoggedIn) {
@@ -664,6 +820,24 @@ class GameStartUI {
       y >= btnPos.y + btnHitArea.y &&
       y <= btnPos.y + btnHitArea.y + btnHitArea.height
     );
+  }
+  
+  /**
+   * 显示游戏开始界面
+   * @param {PIXI.Container} parent - 父容器
+   */
+  show(parent) {
+    if (this.isVisible) return;
+    
+    parent.addChild(this.container);
+    
+    // 添加连接状态UI到父容器（不受GameStartUI隐藏影响）
+    if (!this.connectionStatusUI.parent) {
+      parent.addChild(this.connectionStatusUI);
+    }
+    
+    this.isVisible = true;
+    this._updatePosition();
   }
 }
 

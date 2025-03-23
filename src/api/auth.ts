@@ -1,5 +1,5 @@
 import http from './index';
-import { setStorage, removeStorage } from '../util/storage';
+import { setStorageSync, removeStorageSync, removeStorage } from '../util/storage';
 
 /**
  * 认证API模块
@@ -38,13 +38,13 @@ export interface LoginResponse {
  * @param params 登录参数
  * @returns 登录结果
  */
-export async function wxLogin(params: WxLoginParams): Promise<LoginResponse> {
+export async function wxLogin(params: WxLoginParams) {
   const response = await http.post<LoginResponse>('/auth/wx-login', params);
   
   // 保存token到本地
-  if (response && response.token) {
-    await setStorage('token', response.token);
-    await setStorage('userInfo', response.user);
+  if (response && response.result.token) {
+    setStorageSync('token', response.result.token);
+    setStorageSync('userInfo', response.result.user);
   }
   
   return response;
@@ -56,8 +56,8 @@ export async function wxLogin(params: WxLoginParams): Promise<LoginResponse> {
 export async function logout(): Promise<boolean> {
   try {
     // 只需要清除本地存储的token
-    await removeStorage('token');
-    await removeStorage('userInfo');
+    removeStorageSync('token');
+    removeStorageSync('userInfo');
     return true;
   } catch (error) {
     console.error('退出登录失败', error);
@@ -72,7 +72,7 @@ export async function logout(): Promise<boolean> {
 export async function checkLogin(): Promise<boolean> {
   try {
     const token = await http.get<{ valid: boolean }>('/auth/check');
-    return token.valid;
+    return token.result.valid;
   } catch (error) {
     return false;
   }
