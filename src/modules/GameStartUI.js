@@ -6,7 +6,7 @@ import { showToast } from './ui';
 import { wxLogin } from '../api/auth'; // 导入登录API
 import { HeartbeatConnection } from '../api/heartbeat'; // 导入心跳连接API
 import http from '../api/index'; // 导入HTTP客户端
-
+import { defaultFontFamily } from '../util/constants';
 /**
  * 游戏开始界面
  * 提供游戏开始前的UI界面，包括标题、按钮等
@@ -71,9 +71,13 @@ class GameStartUI {
     this.isVisible = false;
     this.isLoggedIn = false;
     this.heartbeatConnection = null;
+    this.privacyAuthorized = false; // 添加隐私授权状态
     
     // 创建连接状态UI（右上角）
     this.createConnectionStatusUI();
+    
+    // 创建隐私协议弹窗
+    this.createPrivacyDialog();
 
     // 在构造完成后自动开始登录流程
     this.autoLogin = true;
@@ -108,6 +112,134 @@ class GameStartUI {
   }
   
   /**
+   * 创建隐私协议弹窗
+   */
+  createPrivacyDialog() {
+    // 创建隐私弹窗容器
+    this.privacyDialog = new PIXI.Container();
+    this.privacyDialog.zIndex = 200;
+    
+    // 创建半透明背景
+    const background = new PIXI.Graphics();
+    background.beginFill(0x000000, 0.7);
+    background.drawRect(-screen.width/2, -screen.height/2, screen.width, screen.height);
+    background.endFill();
+    
+    // 创建弹窗面板 - 优化高度和宽度
+    const panel = new PIXI.Graphics();
+    panel.beginFill(0xFFFFFF);
+    panel.lineStyle(2, 0x999999);
+    panel.drawRoundedRect(-240, -170, 480, 340, 10);
+    panel.endFill();
+    
+    // 创建标题文本
+    const title = new PIXI.Text("用户隐私协议", {
+      fontFamily: "Arial",
+      fontSize: 20,
+      fontWeight: "bold",
+      fill: 0x333333
+    });
+    title.anchor.set(0.5, 0);
+    title.position.set(0, -140);
+    
+    // 创建协议内容文本 - 简化内容，确保在弹窗范围内
+    const content = new PIXI.Text(
+      "为提供更好的游戏体验，根据相关法律规定，我们需要获取您的部分信息：\n\n1. 游戏必要的数据，用于体验优化\n2. 头像和昵称，仅用于游戏内显示\n\n点击下方按钮表示您同意我们的《隐私协议》和《用户协议》", 
+      {
+        fontFamily: defaultFontFamily,
+        fontSize: 14,
+        fill: 0x333333,
+        wordWrap: true,
+        wordWrapWidth: 360,
+        lineHeight: 20
+      }
+    );
+    content.anchor.set(0.5, 0);
+    content.position.set(0, -80);
+    
+    // 创建同意按钮 - 调整位置
+    this.agreeBtn = new Button({
+      text: '同意并继续',
+      scale: 0.7,
+      onClick: () => {
+        this.onPrivacyAgree();
+      }
+    });
+    this.agreeBtn.position.set(0, 110);
+    
+    // 添加到隐私弹窗容器
+    this.privacyDialog.addChild(background, panel, title, content, this.agreeBtn);
+    
+    // 默认隐藏
+    this.privacyDialog.visible = false;
+  }
+  
+  /**
+   * 显示隐私协议弹窗
+   */
+  showPrivacyDialog(parent) {
+    if (!this.privacyDialog.parent && parent) {
+      parent.addChild(this.privacyDialog);
+    }
+    
+    // 设置位置
+    this.privacyDialog.position.set(screen.width / 2, screen.height / 2);
+    this.privacyDialog.visible = true;
+  }
+  
+  /**
+   * 隐藏隐私协议弹窗
+   */
+  hidePrivacyDialog() {
+    this.privacyDialog.visible = false;
+  }
+  
+  /**
+   * 隐私协议同意按钮点击处理
+   */
+  onPrivacyAgree() {
+    console.log('用户同意隐私协议');
+    
+    // 调用微信隐私授权API
+    wx.requirePrivacyAuthorize({
+      success: res => {
+        console.log('隐私授权成功', res);
+        this.privacyAuthorized = true;
+
+        wx.getUserInfo({
+          success: function(res) {
+            console.log('用户信息', res.userInfo)
+          },
+          fail: function(err) {
+            console.error('获取用户信息失败', err);
+          }
+        })
+        this.hidePrivacyDialog();
+        
+        // 授权成功后继续登录流程
+        if (this.autoLogin && !this.isLoggedIn) {
+          this.login();
+        }
+      },
+      fail: err => {
+        console.error('隐私授权失败', err);
+        // 可以选择显示错误提示或重试
+        if (this.container.parent) {
+          showToast({
+            text: '隐私授权失败，请重试',
+            type: 'error',
+            duration: 2000,
+            parent: this.container.parent
+          });
+        }
+      },
+      complete: () => {
+        console.log('隐私授权流程完成');
+      }
+    });
+  }
+  
+  /**
    * 显示游戏开始界面
    * @param {PIXI.Container} parent - 父容器
    */
@@ -124,8 +256,13 @@ class GameStartUI {
     this.isVisible = true;
     this._updatePosition();
     
-    // 如果设置了自动登录，进行登录
-    if (this.autoLogin && !this.isLoggedIn) {
+    // 先检查隐私授权状态
+    if (!this.privacyAuthorized) {
+      // 显示隐私弹窗
+      this.showPrivacyDialog(parent);
+    } 
+    // 如果已授权且设置了自动登录，则进行登录
+    else if (this.autoLogin && !this.isLoggedIn) {
       this.login();
     }
   }
@@ -134,7 +271,17 @@ class GameStartUI {
    * 登录流程
    */
   async login() {
+    // 确保已同意隐私协议
+    if (!this.privacyAuthorized) {
+      // 如果容器有父节点，显示隐私弹窗
+      if (this.container.parent) {
+        this.showPrivacyDialog(this.container.parent);
+      }
+      return;
+    }
+    
     try {
+      console.log('开始登录');
       // 显示登录提示
       wx.showLoading({
         title: "正在登录中...",
@@ -268,6 +415,11 @@ class GameStartUI {
       this.connectionStatusUI.parent.removeChild(this.connectionStatusUI);
     }
     
+    // 移除隐私弹窗
+    if (this.privacyDialog.parent) {
+      this.privacyDialog.parent.removeChild(this.privacyDialog);
+    }
+    
     // 移除主容器
     if (this.container.parent) {
       this.container.parent.removeChild(this.container);
@@ -282,6 +434,16 @@ class GameStartUI {
    */
   onSinglePlayerClick() {
     console.log('开始单人模式');
+    
+    // 确保已同意隐私协议
+    if (!this.privacyAuthorized) {
+      // 如果容器有父节点，显示隐私弹窗
+      if (this.container.parent) {
+        this.showPrivacyDialog(this.container.parent);
+      }
+      return;
+    }
+    
     // 确保已登录
     if (!this.isLoggedIn) {
       this.login();
@@ -299,6 +461,15 @@ class GameStartUI {
    */
   onMultiPlayerClick() {
     console.log('多人模式开发中');
+    
+    // 确保已同意隐私协议
+    if (!this.privacyAuthorized) {
+      // 如果容器有父节点，显示隐私弹窗
+      if (this.container.parent) {
+        this.showPrivacyDialog(this.container.parent);
+      }
+      return;
+    }
     
     // 确保已登录
     if (!this.isLoggedIn) {
@@ -380,6 +551,19 @@ class GameStartUI {
     // 只有在界面可见时才处理
     if (!this.isVisible) return;
     
+    // 如果隐私弹窗可见，只处理隐私弹窗的点击
+    if (this.privacyDialog.visible) {
+      // 检查是否点击了同意按钮
+      if (this._checkPrivacyAgreeButtonHit(x, y)) {
+        if (isDown) {
+          this.agreeBtn._onPointerDown();
+        } else {
+          this.agreeBtn._onPointerUp();
+        }
+      }
+      return;
+    }
+    
     // 检查是否点击了按钮
     const hitButton = this._checkTouchHit(x, y);
     
@@ -449,6 +633,37 @@ class GameStartUI {
     }
     
     return null;
+  }
+  
+  /**
+   * 检查隐私协议同意按钮是否被点击
+   * @param {number} x - 触摸X坐标
+   * @param {number} y - 触摸Y坐标
+   * @returns {boolean} 是否命中
+   * @private
+   */
+  _checkPrivacyAgreeButtonHit(x, y) {
+    // 计算按钮全局位置
+    const dialogPos = {
+      x: screen.width / 2 + this.privacyDialog.position.x,
+      y: screen.height / 2 + this.privacyDialog.position.y
+    };
+    
+    const btnPos = {
+      x: dialogPos.x + this.agreeBtn.position.x,
+      y: dialogPos.y + this.agreeBtn.position.y
+    };
+    
+    // 获取按钮的点击区域
+    const btnHitArea = this.agreeBtn.hitArea;
+    
+    // 检查是否点击了按钮
+    return (
+      x >= btnPos.x + btnHitArea.x &&
+      x <= btnPos.x + btnHitArea.x + btnHitArea.width &&
+      y >= btnPos.y + btnHitArea.y &&
+      y <= btnPos.y + btnHitArea.y + btnHitArea.height
+    );
   }
 }
 
