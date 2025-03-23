@@ -5,7 +5,8 @@ import { Button } from './ui';
 import { showToast } from './ui';
 import { wxLogin } from '../api/auth'; // 导入登录API
 import { HeartbeatConnection } from '../api/heartbeat'; // 导入心跳连接API
-import http from '../api/index'; // 导入HTTP客户端
+import { getWsUrl } from '../api/index'; // 导入HTTP客户端
+import { getStorageSync } from '../util/storage';
 import { defaultFontFamily } from '../util/constants';
 /**
  * 游戏开始界面
@@ -493,8 +494,7 @@ class GameStartUI {
    */
   setupHeartbeatConnection() {
     // 获取API基础URL和令牌
-    const serverUrl = http.getBaseURL ? http.getBaseURL() : 'https://api.example.com/api';
-    const token = http.getToken ? http.getToken() : '';
+    const token = getStorageSync('token');
     
     if (!token) {
       console.error('建立心跳连接失败：未获取到token');
@@ -502,7 +502,7 @@ class GameStartUI {
     }
     
     // 创建心跳连接实例
-    this.heartbeatConnection = new HeartbeatConnection(serverUrl, token);
+    this.heartbeatConnection = new HeartbeatConnection(getWsUrl('/ws/heartbeat'), token);
     
     // 注册事件处理函数
     this.heartbeatConnection.onConnect(() => {

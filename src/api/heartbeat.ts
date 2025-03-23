@@ -88,7 +88,7 @@ export class HeartbeatConnection {
       this.disconnect();
       
       // 创建WebSocket连接
-      const socketUrl = `${this.serverUrl}/heartbeat`;
+      const socketUrl = this.serverUrl;
       
       // 使用微信小游戏的socket API
       const socketTask = wx.connectSocket({
@@ -96,7 +96,6 @@ export class HeartbeatConnection {
         header: {
           'Authorization': `Bearer ${this.token}`
         },
-        protocols: ['websocket']
       });
       
       // 注册事件处理函数

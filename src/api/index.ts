@@ -381,11 +381,18 @@ export class HttpClient {
   }
 }
 
+export const BASE_URL = 'http://localhost:3000';
+// export const BASE_URL = 'https://www.joy-stream.asia';
+
+export function getWsUrl(url: string) {
+  return BASE_URL.replace('http://', 'ws://').replace(/:\d+$/, '') + ':8080' + url;
+}
+
 /**
  * 默认HTTP客户端实例
  */
 const http = new HttpClient({
-  baseURL: 'http://localhost:3000/api', // 本地环境
+  baseURL: BASE_URL + '/api', // 本地环境
   // baseURL: 'https://www.joy-stream.asia/api', // 生产环境
   retry: 1,
   retryDelay: 1500
