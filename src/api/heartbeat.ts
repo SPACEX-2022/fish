@@ -22,39 +22,39 @@ export interface OnlineCountResponse {
   timestamp: number;
 }
 
-/**
- * 发送心跳信号
- * @param clientId 客户端ID（可选）
- * @returns 心跳响应
- */
-export async function ping(clientId?: string): Promise<{ status: string; message: string; timestamp: number }> {
-  const headers: Record<string, string> = {};
-  if (clientId) {
-    headers['x-client-id'] = clientId;
-  }
+// /**
+//  * 发送心跳信号
+//  * @param clientId 客户端ID（可选）
+//  * @returns 心跳响应
+//  */
+// export async function ping(clientId?: string): Promise<{ status: string; message: string; timestamp: number }> {
+//   const headers: Record<string, string> = {};
+//   if (clientId) {
+//     headers['x-client-id'] = clientId;
+//   }
   
-  return http.post<{ status: string; message: string; timestamp: number }>(
-    '/heartbeat/ping',
-    {},
-    { header: headers }
-  );
-}
+//   return http.post<{ status: string; message: string; timestamp: number }>(
+//     '/heartbeat/ping',
+//     {},
+//     { header: headers }
+//   );
+// }
 
-/**
- * 获取当前用户的在线状态
- * @returns 在线状态
- */
-export async function getStatus(): Promise<HeartbeatStatus> {
-  return http.get<HeartbeatStatus>('/heartbeat/status');
-}
+// /**
+//  * 获取当前用户的在线状态
+//  * @returns 在线状态
+//  */
+// export async function getStatus(): Promise<HeartbeatStatus> {
+//   return http.get<HeartbeatStatus>('/heartbeat/status');
+// }
 
-/**
- * 获取当前在线用户数
- * @returns 在线用户数
- */
-export async function getOnlineCount(): Promise<OnlineCountResponse> {
-  return http.get<OnlineCountResponse>('/heartbeat/online-count');
-}
+// /**
+//  * 获取当前在线用户数
+//  * @returns 在线用户数
+//  */
+// export async function getOnlineCount(): Promise<OnlineCountResponse> {
+//   return http.get<OnlineCountResponse>('/heartbeat/online-count');
+// }
 
 // WebSocket心跳连接管理
 export class HeartbeatConnection {
@@ -66,7 +66,7 @@ export class HeartbeatConnection {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 2000;
-  private heartbeatInterval = 15000; // 15秒
+  private heartbeatInterval = 5000; // 5秒
   private clientId: string = '';
   
   private onConnectCallbacks: Array<() => void> = [];
@@ -74,6 +74,13 @@ export class HeartbeatConnection {
   private onErrorCallbacks: Array<(error: any) => void> = [];
   private onStatusChangeCallbacks: Array<(status: HeartbeatStatus) => void> = [];
   
+  // 新增：用于测量网络延迟
+  private lastPingSent: number = 0;
+  private pingHistory: number[] = [];
+  private pingHistoryMax: number = 10; // 保存最近10次测量结果
+  private onPingUpdateCallbacks: Array<(ping: number) => void> = [];
+  private currentPing: number = 0;
+
   constructor(serverUrl: string, token: string) {
     this.serverUrl = serverUrl;
     this.token = token;
@@ -168,7 +175,9 @@ export class HeartbeatConnection {
    */
   private sendHeartbeat(): void {
     if (this.socket && this.isConnected) {
-      this.sendMessage('heartbeat');
+      // 记录发送心跳的时间戳
+      this.lastPingSent = Date.now();
+      this.sendMessage('heartbeat', { event: 'heartbeat', data: { timestamp: this.lastPingSent } });
     }
   }
   
@@ -259,17 +268,22 @@ export class HeartbeatConnection {
     }
   }
   
-  private handleMessage(event: any): void {
+  private handleMessage(events: any): void {
     try {
-      const data = JSON.parse(event.data);
+      const { event, data } = JSON.parse(events.data);
+      console.log('收到心跳响应', events);
       
       // 处理不同类型的消息
-      switch (data.type) {
+      switch (event) {
         case 'connection':
           this.clientId = data.clientId;
           break;
         case 'heartbeat':
-          // 心跳响应
+          // 心跳响应，计算ping值
+          if (this.lastPingSent > 0) {
+            const pingValue = Date.now() - this.lastPingSent;
+            this.updatePingValue(pingValue);
+          }
           break;
         case 'status':
           // 状态变更
@@ -327,5 +341,51 @@ export class HeartbeatConnection {
   // 获取客户端ID
   getClientId(): string {
     return this.clientId;
+  }
+  
+  /**
+   * 更新ping值
+   * @param pingValue 新测量的ping值
+   */
+  private updatePingValue(pingValue: number): void {
+    // 添加到历史记录
+    this.pingHistory.push(pingValue);
+    
+    // 保持固定长度
+    if (this.pingHistory.length > this.pingHistoryMax) {
+      this.pingHistory.shift();
+    }
+    
+    // 计算平均ping值
+    const avgPing = Math.floor(
+      this.pingHistory.reduce((sum, val) => sum + val, 0) / 
+      this.pingHistory.length
+    );
+    
+    this.currentPing = avgPing;
+    
+    // 触发ping更新事件
+    this.onPingUpdateCallbacks.forEach(callback => callback(avgPing));
+  }
+  
+  /**
+   * 获取当前ping值
+   * @returns 当前ping值(ms)
+   */
+  getCurrentPing(): number {
+    return this.currentPing;
+  }
+  
+  /**
+   * 注册ping更新回调函数
+   * @param callback ping值更新时调用的回调函数
+   */
+  onPingUpdate(callback: (ping: number) => void): void {
+    this.onPingUpdateCallbacks.push(callback);
+    
+    // 如果已有ping值，立即触发一次回调
+    if (this.currentPing > 0) {
+      callback(this.currentPing);
+    }
   }
 } 

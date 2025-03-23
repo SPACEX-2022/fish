@@ -191,8 +191,10 @@ class GameStartUI {
     // 添加到隐私弹窗容器
     this.privacyDialog.addChild(background, panel, title, content, this.agreeBtn);
     
-    // 默认隐藏
-    this.privacyDialog.visible = false;
+    this.privacyDialog.visible = true;
+
+    // 添加到主容器
+    this.container.addChild(this.privacyDialog);  
   }
   
   /**
@@ -518,6 +520,11 @@ class GameStartUI {
       this.updateConnectionStatus(false);
     });
     
+    // 注册ping更新事件，当ping值变化时更新UI
+    this.heartbeatConnection.onPingUpdate((pingValue) => {
+      this.updatePingDisplay(pingValue);
+    });
+    
     // 开始连接
     this.heartbeatConnection.connect();
     
@@ -537,11 +544,47 @@ class GameStartUI {
     if (isConnected) {
       // 在线状态 - 绿色
       this.statusIndicator.beginFill(0x00FF00);
-      this.statusText.text = "在线";
+      // 如果已连接，尝试获取ping值
+      if (this.heartbeatConnection) {
+        const pingValue = this.heartbeatConnection.getCurrentPing();
+        if (pingValue > 0) {
+          this.statusText.text = `${pingValue}ms`;
+        } else {
+          this.statusText.text = "连接中";
+        }
+      } else {
+        this.statusText.text = "在线";
+      }
     } else {
       // 离线状态 - 红色
       this.statusIndicator.beginFill(0xFF0000);
       this.statusText.text = "离线";
+    }
+    
+    this.statusIndicator.drawCircle(0, 0, 6);
+    this.statusIndicator.endFill();
+  }
+  
+  /**
+   * 更新ping显示
+   * @param {number} pingValue - ping值(ms)
+   */
+  updatePingDisplay(pingValue) {
+    // 根据ping值设置文本
+    this.statusText.text = `${pingValue}ms`;
+    
+    // 根据ping值调整指示器颜色
+    this.statusIndicator.clear();
+    
+    if (pingValue < 100) {
+      // 优良连接 - 绿色
+      this.statusIndicator.beginFill(0x00FF00);
+    } else if (pingValue < 200) {
+      // 一般连接 - 黄色
+      this.statusIndicator.beginFill(0xFFFF00);
+    } else {
+      // 较差连接 - 红色
+      this.statusIndicator.beginFill(0xFF0000);
     }
     
     this.statusIndicator.drawCircle(0, 0, 6);
