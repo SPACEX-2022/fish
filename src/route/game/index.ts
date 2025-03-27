@@ -7,6 +7,7 @@ import GameStartUI from '../../modules/GameStartUI'
 import audioManager from '../../modules/AudioManager'
 import HUD from '../../modules/HUD'
 import { KawaseBlurFilter } from 'pixi-filters'
+import { getStorageSync } from '../../util/storage'
 
 let root: PIXI.Container
 let fishes: Fish[] = []
@@ -80,7 +81,7 @@ function init() {
   // 初始化HUD但不显示，等游戏开始后再显示
   hud = new HUD({
     comboTimeout: 3000, // 3秒连击超时时间
-    gameTimeLimit: 60000, // 60秒游戏时间
+    gameTimeLimit: 10000, // 60秒游戏时间
     onGameTimeUp: handleGameTimeUp // 游戏时间结束回调
   });
   
@@ -709,21 +710,30 @@ function handleGameTimeUp(finalScore: number) {
   // 停止游戏
   isGameStarted = false;
   
-  // 创建模拟排行榜数据
-  // 确保当前玩家的分数在排行榜中
-  const mockRankings = [
-    { nickname: '玩家1', score: finalScore + 200, avatar: null },
-    { nickname: '当前玩家', score: finalScore, avatar: null }, // 使用当前玩家的实际分数
-    { nickname: '玩家3', score: finalScore - 100, avatar: null },
-    { nickname: '玩家4', score: finalScore - 200, avatar: null }
-  ];
+  // 获取玩家信息
+  let userProfile = null;
+  try {
+    const profileStr = getStorageSync('userProfile');
+    if (profileStr) {
+      userProfile = JSON.parse(profileStr);
+      console.log('获取到用户信息:', userProfile);
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error);
+  }
   
-  // 根据分数排序
-  mockRankings.sort((a, b) => b.score - a.score);
+  // 单人模式只显示当前玩家
+  const playerInfo = {
+    nickname: userProfile?.nickName || '当前玩家',
+    score: finalScore,
+    avatar: userProfile?.avatarUrl || null
+  };
+  
+  const rankings = [playerInfo];
   
   // 显示计分板
   if (hud) {
-    hud.showScoreboard(finalScore, mockRankings);
+    hud.showScoreboard(finalScore, rankings);
   }
 }
 
@@ -736,21 +746,60 @@ function exitGame() {
   // 停止游戏
   isGameStarted = false;
   
+  // 清理子弹和炮台（确保在设置player为null前处理）
+  if (player) {
+    // 如果存在炮台系统，确保完全清理
+    if (player.batterySystem) {
+      try {
+        // 清除子弹
+        player.batterySystem.clearBullets();
+        
+        // 显式移除炮台和底座
+        player.batterySystem.removeFromContainer();
+        
+        // 强制移除炮台和底座的引用
+        player.batterySystem = null;
+      } catch (error) {
+        console.error('清理炮台系统失败:', error);
+      }
+    }
+    
+    // 执行player的所有清理操作
+    try {
+      // 如果player有自己的destroy方法可以调用（当前代码中未实现）
+      if (typeof player.destroy === 'function') {
+        player.destroy();
+      }
+    } catch (error) {
+      console.error('清理玩家对象失败:', error);
+    }
+  }
+  
   // 清理HUD
   if (hud) {
     hud.hide();
   }
   
-  // 清理玩家
-  if (player) {
-    player = null;
+  // 清理玩家引用，确保垃圾回收
+  player = null;
+  
+  // 先重置可能残留的滤镜
+  if (fishContainer) {
+    fishContainer.filters = null;
   }
   
   // 显示游戏开始界面
   if (gameStartUI) {
     gameStartUI.show(root);
-    // 应用模糊滤镜到鱼群
-    gameStartUI.applyBlurFilter(fishContainer);
+    
+    // 确保在下一帧应用模糊滤镜，避免可能的渲染问题
+    setTimeout(() => {
+      // 应用模糊滤镜到鱼群
+      if (fishContainer) {
+        console.log('重新应用鱼群模糊滤镜');
+        gameStartUI.applyBlurFilter(fishContainer);
+      }
+    }, 50);
   }
 }
 
@@ -763,10 +812,37 @@ function restartGame() {
   // 停止当前游戏
   isGameStarted = false;
   
-  // 重置玩家
+  // 清理子弹和炮台（确保在设置player为null前处理）
   if (player) {
-    player = null;
+    // 如果存在炮台系统，确保完全清理
+    if (player.batterySystem) {
+      try {
+        // 清除子弹
+        player.batterySystem.clearBullets();
+        
+        // 显式移除炮台和底座
+        player.batterySystem.removeFromContainer();
+        
+        // 强制移除炮台和底座的引用
+        player.batterySystem = null;
+      } catch (error) {
+        console.error('清理炮台系统失败:', error);
+      }
+    }
+    
+    // 执行player的所有清理操作
+    try {
+      // 如果player有自己的destroy方法可以调用（当前代码中未实现）
+      if (typeof player.destroy === 'function') {
+        player.destroy();
+      }
+    } catch (error) {
+      console.error('清理玩家对象失败:', error);
+    }
   }
+  
+  // 清理玩家引用，确保垃圾回收
+  player = null;
   
   // 隐藏计分板
   if (hud) {

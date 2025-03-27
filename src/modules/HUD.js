@@ -555,184 +555,253 @@ class HUD {
     overlay.drawRect(0, 0, screen.width, screen.height);
     overlay.endFill();
     
+    // 为了适应手机横屏显示，计算安全尺寸
+    const safeHeight = screen.height * 0.85; // 保留15%的边距
+    const safeWidth = screen.width * 0.9; // 保留10%的边距
+    const panelHeight = Math.min(360, safeHeight); // 限制最大高度
+    const panelWidth = Math.min(380, safeWidth); // 限制最大宽度
+    
+    // 创建内容容器 - 所有内容都在这个容器内，方便整体定位
+    const contentContainer = new PIXI.Container();
+    contentContainer.position.set(screen.width / 2, screen.height / 2);
+    
     // 创建计分板面板 - 减小高度，确保不会溢出屏幕
     const panel = new PIXI.Graphics();
     panel.beginFill(0xFFFFFF);
     panel.lineStyle(2, 0x999999);
-    panel.drawRoundedRect(screen.width / 2 - 200, screen.height / 2 - 220, 400, 440, 10);
+    panel.drawRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, 10);
     panel.endFill();
+    contentContainer.addChild(panel);
     
-    // 创建标题文本
+    // 创建标题文本 - 减小字体大小
     const titleText = new PIXI.Text('游戏结束', {
       fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-      fontSize: 32,
+      fontSize: 28, // 减小字体大小
       fill: 0x333333,
       fontWeight: 'bold'
     });
     titleText.anchor.set(0.5, 0);
-    titleText.position.set(screen.width / 2, screen.height / 2 - 200);
+    titleText.position.set(0, -panelHeight/2 + 20);
     
     // 创建分数文本 - 突出显示玩家的分数
     const scoreText = new PIXI.Text(`您的得分: ${score}`, {
       fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-      fontSize: 28,
+      fontSize: 24, // 减小字体大小
       fill: 0xFF8C00,  // 使用橙色突出显示
       fontWeight: 'bold'
     });
     scoreText.anchor.set(0.5, 0);
-    scoreText.position.set(screen.width / 2, screen.height / 2 - 150);
+    scoreText.position.set(0, -panelHeight/2 + 60);
     
-    // 创建排行榜标题
-    const rankingTitle = new PIXI.Text('排行榜', {
-      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-      fontSize: 22,
-      fill: 0x333333,
-      fontWeight: 'bold'
-    });
-    rankingTitle.anchor.set(0.5, 0);
-    rankingTitle.position.set(screen.width / 2, screen.height / 2 - 110);
-    
-    // 创建排行榜容器
-    const rankListContainer = new PIXI.Container();
-    rankListContainer.position.set(screen.width / 2 - 180, screen.height / 2 - 80);
-    
-    // 添加排行榜表头
-    const headerContainer = new PIXI.Container();
-    const headerBg = new PIXI.Graphics();
-    headerBg.beginFill(0xEEEEEE);
-    headerBg.drawRect(0, 0, 360, 30);
-    headerBg.endFill();
-    
-    const rankHeader = new PIXI.Text('排名', {
-      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-      fontSize: 16,
-      fill: 0x333333
-    });
-    rankHeader.position.set(20, 5);
-    
-    const nameHeader = new PIXI.Text('玩家', {
-      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-      fontSize: 16,
-      fill: 0x333333
-    });
-    nameHeader.position.set(100, 5);
-    
-    const scoreHeader = new PIXI.Text('分数', {
-      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-      fontSize: 16,
-      fill: 0x333333
-    });
-    scoreHeader.position.set(300, 5);
-    
-    headerContainer.addChild(headerBg, rankHeader, nameHeader, scoreHeader);
-    rankListContainer.addChild(headerContainer);
-    
-    // 添加排行榜数据 - 只显示前4条数据
-    for (let i = 0; i < Math.min(rankings.length, 4); i++) {
-      const rowContainer = new PIXI.Container();
-      rowContainer.position.set(0, 40 + i * 40);
-      
-      // 检查当前行是否是当前玩家（分数相同）
-      const isCurrentPlayer = rankings[i].score === score;
-      
-      // 设置背景色，当前玩家使用高亮颜色
-      const rowBg = new PIXI.Graphics();
-      rowBg.beginFill(isCurrentPlayer ? 0xFFE0B2 : (i % 2 === 0 ? 0xFFFFFF : 0xF5F5F5));
-      rowBg.drawRect(0, 0, 360, 35);
-      rowBg.endFill();
-      
-      const rankText = new PIXI.Text(`${i + 1}`, {
-        fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-        fontSize: 16,
-        fill: isCurrentPlayer ? 0xFF8C00 : 0x333333,
-        fontWeight: isCurrentPlayer ? 'bold' : 'normal'
-      });
-      rankText.position.set(20, 8);
-      
-      // 创建头像
-      const avatarBg = new PIXI.Graphics();
-      avatarBg.beginFill(0xDDDDDD);
-      avatarBg.drawCircle(65, 17, 15);
-      avatarBg.endFill();
-      
-      // 如果有头像，则加载头像
-      let avatar;
-      if (rankings[i].avatar) {
-        avatar = PIXI.Sprite.from(rankings[i].avatar);
-        avatar.width = avatar.height = 30;
-        avatar.anchor.set(0.5);
-        avatar.position.set(65, 17);
-      }
-      
-      const nameText = new PIXI.Text(rankings[i].nickname || `玩家${i+1}`, {
-        fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-        fontSize: 16,
-        fill: isCurrentPlayer ? 0xFF8C00 : 0x333333,
-        fontWeight: isCurrentPlayer ? 'bold' : 'normal'
-      });
-      nameText.position.set(90, 8);
-      
-      const scoreText = new PIXI.Text(`${rankings[i].score}`, {
-        fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-        fontSize: 16,
-        fill: isCurrentPlayer ? 0xFF8C00 : 0x333333,
-        fontWeight: isCurrentPlayer ? 'bold' : 'normal'
-      });
-      scoreText.position.set(300, 8);
-      
-      // 如果是当前玩家，添加"(您)"标记
-      if (isCurrentPlayer) {
-        const currentPlayerMark = new PIXI.Text("(您)", {
+    // 如果只有当前玩家一条数据，简化布局，不显示排行榜标题和表头
+    if (rankings.length === 1) {
+      // 显示玩家信息 - 更简洁的布局
+      if (rankings[0]) {
+        const player = rankings[0];
+        
+        // 创建玩家信息容器
+        const playerContainer = new PIXI.Container();
+        playerContainer.position.set(0, -panelHeight/2 + 120);
+        
+        // 创建头像背景
+        const avatarBg = new PIXI.Graphics();
+        avatarBg.beginFill(0xEEEEEE);
+        avatarBg.drawCircle(0, 0, 30);
+        avatarBg.endFill();
+        avatarBg.position.set(0, 0);
+        
+        // 如果有头像，则加载头像
+        if (player.avatar) {
+          const avatar = PIXI.Sprite.from(player.avatar);
+          avatar.width = avatar.height = 60;
+          avatar.anchor.set(0.5);
+          avatar.position.set(0, 0);
+          playerContainer.addChild(avatarBg, avatar);
+        } else {
+          playerContainer.addChild(avatarBg);
+        }
+        
+        // 创建昵称文本
+        const nameText = new PIXI.Text(player.nickname || '玩家', {
           fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-          fontSize: 14,
-          fill: 0xFF8C00,
+          fontSize: 20,
+          fill: 0x333333,
           fontWeight: 'bold'
         });
-        currentPlayerMark.position.set(nameText.width + nameText.x + 10, 9);
-        rowContainer.addChild(currentPlayerMark);
+        nameText.anchor.set(0.5, 0);
+        nameText.position.set(0, 40);
+        
+        playerContainer.addChild(nameText);
+        contentContainer.addChild(playerContainer);
+      }
+    } else {
+      // 多人游戏排行榜模式 - 如果有多条数据显示排行榜
+      // 创建排行榜标题
+      const rankingTitle = new PIXI.Text('排行榜', {
+        fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+        fontSize: 20, // 减小字体大小
+        fill: 0x333333,
+        fontWeight: 'bold'
+      });
+      rankingTitle.anchor.set(0.5, 0);
+      rankingTitle.position.set(0, -panelHeight/2 + 100);
+      contentContainer.addChild(rankingTitle);
+      
+      // 创建排行榜容器 - 宽度适应面板
+      const rankListWidth = panelWidth - 60;
+      const rankListContainer = new PIXI.Container();
+      rankListContainer.position.set(-rankListWidth/2, -panelHeight/2 + 130);
+      
+      // 添加排行榜表头
+      const headerContainer = new PIXI.Container();
+      const headerBg = new PIXI.Graphics();
+      headerBg.beginFill(0xEEEEEE);
+      headerBg.drawRect(0, 0, rankListWidth, 25); // 减小高度
+      headerBg.endFill();
+      
+      const rankHeader = new PIXI.Text('排名', {
+        fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+        fontSize: 14, // 减小字体大小
+        fill: 0x333333
+      });
+      rankHeader.position.set(15, 4); // 调整位置
+      
+      const nameHeader = new PIXI.Text('玩家', {
+        fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+        fontSize: 14, // 减小字体大小
+        fill: 0x333333
+      });
+      nameHeader.position.set(80, 4); // 调整位置
+      
+      const scoreHeader = new PIXI.Text('分数', {
+        fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+        fontSize: 14, // 减小字体大小
+        fill: 0x333333
+      });
+      scoreHeader.position.set(rankListWidth - 50, 4); // 调整位置
+      
+      headerContainer.addChild(headerBg, rankHeader, nameHeader, scoreHeader);
+      rankListContainer.addChild(headerContainer);
+      
+      // 添加排行榜数据 - 最多显示3条数据
+      const maxRows = Math.min(rankings.length, 3);
+      const rowHeight = 30; // 减小行高
+      
+      for (let i = 0; i < maxRows; i++) {
+        const rowContainer = new PIXI.Container();
+        rowContainer.position.set(0, 30 + i * rowHeight); // 调整行间距
+        
+        // 检查当前行是否是当前玩家（分数相同）
+        const isCurrentPlayer = rankings[i].score === score;
+        
+        // 设置背景色，当前玩家使用高亮颜色
+        const rowBg = new PIXI.Graphics();
+        rowBg.beginFill(isCurrentPlayer ? 0xFFE0B2 : (i % 2 === 0 ? 0xFFFFFF : 0xF5F5F5));
+        rowBg.drawRect(0, 0, rankListWidth, rowHeight);
+        rowBg.endFill();
+        
+        const rankText = new PIXI.Text(`${i + 1}`, {
+          fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+          fontSize: 14, // 减小字体大小
+          fill: isCurrentPlayer ? 0xFF8C00 : 0x333333,
+          fontWeight: isCurrentPlayer ? 'bold' : 'normal'
+        });
+        rankText.position.set(15, 8); // 调整位置
+        
+        // 创建头像背景 - 减小尺寸
+        const avatarBg = new PIXI.Graphics();
+        avatarBg.beginFill(0xDDDDDD);
+        avatarBg.drawCircle(55, 15, 12); // 减小半径
+        avatarBg.endFill();
+        
+        // 如果有头像，则加载头像 - 减小尺寸
+        let avatar;
+        if (rankings[i].avatar) {
+          avatar = PIXI.Sprite.from(rankings[i].avatar);
+          avatar.width = avatar.height = 24; // 减小尺寸
+          avatar.anchor.set(0.5);
+          avatar.position.set(55, 15);
+        }
+        
+        // 创建昵称，减少长度以防止溢出
+        let nickname = rankings[i].nickname || `玩家${i+1}`;
+        if (nickname.length > 8) {
+          nickname = nickname.substring(0, 8) + '...';
+        }
+        
+        const nameText = new PIXI.Text(nickname, {
+          fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+          fontSize: 14, // 减小字体大小
+          fill: isCurrentPlayer ? 0xFF8C00 : 0x333333,
+          fontWeight: isCurrentPlayer ? 'bold' : 'normal'
+        });
+        nameText.position.set(80, 8); // 调整位置
+        
+        const scoreText = new PIXI.Text(`${rankings[i].score}`, {
+          fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+          fontSize: 14, // 减小字体大小
+          fill: isCurrentPlayer ? 0xFF8C00 : 0x333333,
+          fontWeight: isCurrentPlayer ? 'bold' : 'normal'
+        });
+        scoreText.position.set(rankListWidth - 50, 8); // 调整位置
+        
+        // 如果是当前玩家，添加"(您)"标记 - 短一点以节省空间
+        if (isCurrentPlayer) {
+          const currentPlayerMark = new PIXI.Text("(您)", {
+            fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+            fontSize: 12, // 减小字体大小
+            fill: 0xFF8C00,
+            fontWeight: 'bold'
+          });
+          // 将标记放在名字旁边，避免重叠
+          currentPlayerMark.position.set(Math.min(nameText.width + nameText.x + 5, rankListWidth - 100), 10);
+          rowContainer.addChild(currentPlayerMark);
+        }
+        
+        rowContainer.addChild(rowBg, rankText, avatarBg);
+        if (avatar) rowContainer.addChild(avatar);
+        rowContainer.addChild(nameText, scoreText);
+        
+        rankListContainer.addChild(rowContainer);
       }
       
-      rowContainer.addChild(rowBg, rankText, avatarBg);
-      if (avatar) rowContainer.addChild(avatar);
-      rowContainer.addChild(nameText, scoreText);
-      
-      rankListContainer.addChild(rowContainer);
+      contentContainer.addChild(rankListContainer);
     }
     
-    // 创建"主菜单"按钮 - 调整位置，确保在屏幕内
+    // 创建"主菜单"按钮 - 减小尺寸，调整位置
     const mainMenuButton = new PIXI.Graphics();
     mainMenuButton.beginFill(0x4CAF50);
-    mainMenuButton.drawRoundedRect(0, 0, 130, 50, 5);
+    mainMenuButton.drawRoundedRect(0, 0, 110, 40, 5);
     mainMenuButton.endFill();
-    mainMenuButton.position.set(screen.width / 2 - 150, screen.height / 2 + 150);
+    mainMenuButton.position.set(-115, panelHeight/2 - 60); // 调整位置到面板底部
     mainMenuButton.interactive = true;
     mainMenuButton.buttonMode = true;
     
     const mainMenuText = new PIXI.Text('主菜单', {
       fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-      fontSize: 20,
+      fontSize: 16, // 减小字体大小
       fill: 0xFFFFFF
     });
     mainMenuText.anchor.set(0.5);
-    mainMenuText.position.set(65, 25);
+    mainMenuText.position.set(55, 20);
     mainMenuButton.addChild(mainMenuText);
     
-    // 创建"再来一局"按钮 - 调整位置，确保在屏幕内
+    // 创建"再来一局"按钮 - 减小尺寸，调整位置
     const restartButton = new PIXI.Graphics();
     restartButton.beginFill(0x2196F3);
-    restartButton.drawRoundedRect(0, 0, 130, 50, 5);
+    restartButton.drawRoundedRect(0, 0, 110, 40, 5);
     restartButton.endFill();
-    restartButton.position.set(screen.width / 2 + 20, screen.height / 2 + 150);
+    restartButton.position.set(5, panelHeight/2 - 60); // 调整位置到面板底部
     restartButton.interactive = true;
     restartButton.buttonMode = true;
     
     const restartText = new PIXI.Text('再来一局', {
       fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-      fontSize: 20,
+      fontSize: 16, // 减小字体大小
       fill: 0xFFFFFF
     });
     restartText.anchor.set(0.5);
-    restartText.position.set(65, 25);
+    restartText.position.set(55, 20);
     restartButton.addChild(restartText);
     
     // 添加点击事件
@@ -753,7 +822,11 @@ class HUD {
     });
     
     // 添加所有元素到计分板容器
-    scoreboardContainer.addChild(overlay, panel, titleText, scoreText, rankingTitle, rankListContainer, mainMenuButton, restartButton);
+    contentContainer.addChild(titleText, scoreText, mainMenuButton, restartButton);
+    
+    // 添加背景和内容容器到计分板容器
+    scoreboardContainer.addChild(overlay);
+    scoreboardContainer.addChild(contentContainer);
     
     // 添加到主容器
     this.container.addChild(scoreboardContainer);

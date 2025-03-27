@@ -303,6 +303,26 @@ class BatterySystem {
     this.activeBullets.clear();
     this.bullets = [];
   }
+  
+  /**
+   * 从容器中移除炮台和底座
+   */
+  removeFromContainer() {
+    // 移除炮台
+    if (this.cannon) {
+      this.cannon.removeFromContainer();
+    }
+    
+    // 移除底座
+    if (this.base) {
+      this.base.removeFromContainer();
+    }
+    
+    // 清理所有子弹
+    this.clearBullets();
+    
+    console.log('炮台系统已从场景中移除');
+  }
 }
 
 export default BatterySystem; 

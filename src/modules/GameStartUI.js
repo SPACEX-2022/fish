@@ -81,10 +81,12 @@ class GameStartUI {
     // 在构造完成后自动开始登录流程
     this.autoLogin = true;
 
+    this.showLoginDialog();
     wx.getPrivacySetting({
       success: res => {
         console.log('隐私设置', res);
         if (res.needAuthorization) {
+          this.hideLoginDialog();
           // 创建隐私协议弹窗
           this.createPrivacyDialog();
         } else {
@@ -94,6 +96,7 @@ class GameStartUI {
               if (res.authSetting['scope.userInfo']) {
                 this.getUserProfileInfo();
               } else {
+                this.hideLoginDialog();
                 this.showUserProfileButton();
               }
             }
