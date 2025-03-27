@@ -266,7 +266,7 @@ function showFloatingScore(x: number, y: number, score: number) {
   scoreContainer.scale.set(0.8); // 稍微小一点的显示比例
   
   // 将分数转换为字符串
-  const scoreStr = `+${score}`;
+  const scoreStr = score > 0 ? `+${score}` : `${score}`;
   
   // 计算总宽度，用于居中
   let totalWidth = 0;
