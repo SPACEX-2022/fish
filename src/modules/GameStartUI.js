@@ -191,10 +191,15 @@ class GameStartUI {
     // 添加到隐私弹窗容器
     this.privacyDialog.addChild(background, panel, title, content, this.agreeBtn);
     
-    this.privacyDialog.visible = true;
+    // 默认先隐藏，等添加到容器后再显示并添加动画
+    this.privacyDialog.visible = false;
 
     // 添加到主容器
-    this.container.addChild(this.privacyDialog);  
+    this.container.addChild(this.privacyDialog);
+    
+    // 显示并添加动画
+    this.privacyDialog.visible = true;
+    this.applyDialogAnimation(this.privacyDialog);
   }
   
   /**
@@ -242,11 +247,8 @@ class GameStartUI {
    * 获取用户头像和昵称信息
    */
   getUserProfileInfo() {
-    // 显示加载提示
-    wx.showLoading({
-      title: "正在获取信息...",
-      mask: true
-    });
+    // 显示登录弹窗
+    this.showLoginDialog();
     
     // 通过 wx.getSetting 查询用户是否已授权头像昵称信息
     wx.getSetting({
@@ -422,6 +424,10 @@ class GameStartUI {
     
     // 设置位置
     this.userProfileDialog.position.set(screen.width / 2, screen.height / 2);
+    
+    // 添加动画效果
+    this.applyDialogAnimation(this.userProfileDialog);
+    
     this.userProfileDialog.visible = true;
     
     // 确保按钮可见
@@ -446,11 +452,6 @@ class GameStartUI {
   async login() {
     try {
       console.log('开始登录');
-      // 显示登录提示
-      wx.showLoading({
-        title: "正在登录中...",
-        mask: true
-      });
       
       // 调用微信登录获取code
       const loginResult = await wx.login();
@@ -469,6 +470,9 @@ class GameStartUI {
         // 登录成功后建立心跳连接
         this.setupHeartbeatConnection();
         
+        // 隐藏登录弹窗
+        this.hideLoginDialog();
+        
         // 登录成功提示
         wx.showToast({
           title: "登录成功",
@@ -480,14 +484,146 @@ class GameStartUI {
       }
     } catch (error) {
       console.error("登录失败", error);
+      
+      // 隐藏登录弹窗
+      this.hideLoginDialog();
+      
       wx.showToast({
         title: "登录失败，请重试",
         icon: "none",
         duration: 2000
       });
-    } finally {
-      // 关闭登录提示
-      wx.hideLoading();
+    }
+  }
+  
+  /**
+   * 创建登录弹窗
+   */
+  createLoginDialog() {
+    // 如果已经创建过，不重复创建
+    if (this.loginDialog) return;
+    
+    // 创建弹窗容器
+    this.loginDialog = new PIXI.Container();
+    this.loginDialog.zIndex = 200;
+    
+    // 创建半透明背景
+    const background = new PIXI.Graphics();
+    background.beginFill(0x000000, 0.7);
+    background.drawRect(-screen.width/2, -screen.height/2, screen.width, screen.height);
+    background.endFill();
+    
+    // 创建弹窗面板
+    const panel = new PIXI.Graphics();
+    panel.beginFill(0xFFFFFF);
+    panel.lineStyle(2, 0x999999);
+    panel.drawRoundedRect(-150, -80, 300, 160, 10);
+    panel.endFill();
+    
+    // 创建标题文本
+    const title = new PIXI.Text("登录中", {
+      fontFamily: defaultFontFamily,
+      fontSize: 20,
+      fontWeight: "bold",
+      fill: 0x333333
+    });
+    title.anchor.set(0.5, 0);
+    title.position.set(0, -60);
+    
+    // 创建加载动画
+    this.loadingAnimation = new PIXI.Container();
+    this.loadingAnimation.position.set(0, 0);
+    
+    // 创建加载动画圆圈
+    const loadingCircle = new PIXI.Graphics();
+    loadingCircle.lineStyle(3, 0x3399FF);
+    loadingCircle.drawCircle(0, 0, 20);
+    loadingCircle.endFill();
+    
+    // 创建加载动画指示器
+    const loadingIndicator = new PIXI.Graphics();
+    loadingIndicator.beginFill(0x3399FF);
+    loadingIndicator.drawCircle(0, -20, 5);
+    loadingIndicator.endFill();
+    
+    // 添加到加载动画容器
+    this.loadingAnimation.addChild(loadingCircle, loadingIndicator);
+    
+    // 创建状态文本
+    this.loginStatusText = new PIXI.Text("正在登录中...", {
+      fontFamily: defaultFontFamily,
+      fontSize: 16,
+      fill: 0x333333
+    });
+    this.loginStatusText.anchor.set(0.5, 0);
+    this.loginStatusText.position.set(0, 40);
+    
+    // 添加到弹窗容器
+    this.loginDialog.addChild(background, panel, title, this.loadingAnimation, this.loginStatusText);
+    
+    // 默认隐藏
+    this.loginDialog.visible = false;
+  }
+  
+  /**
+   * 显示登录弹窗
+   */
+  showLoginDialog() {
+    // 创建弹窗(如果未创建)
+    this.createLoginDialog();
+    
+    if (!this.loginDialog.parent && this.container.parent) {
+      this.container.parent.addChild(this.loginDialog);
+    }
+    
+    // 设置位置
+    this.loginDialog.position.set(screen.width / 2, screen.height / 2);
+    
+    // 添加动画效果
+    this.applyDialogAnimation(this.loginDialog);
+    
+    this.loginDialog.visible = true;
+    
+    // 开始加载动画
+    this.startLoadingAnimation();
+  }
+  
+  /**
+   * 隐藏登录弹窗
+   */
+  hideLoginDialog() {
+    if (!this.loginDialog) return;
+    
+    // 停止加载动画
+    this.stopLoadingAnimation();
+    
+    this.loginDialog.visible = false;
+  }
+  
+  /**
+   * 开始加载动画
+   */
+  startLoadingAnimation() {
+    // 清除之前的动画
+    this.stopLoadingAnimation();
+    
+    // 创建动画
+    let rotation = 0;
+    this.loadingAnimationTimer = setInterval(() => {
+      rotation += 0.1;
+      if (this.loadingAnimation) {
+        this.loadingAnimation.rotation = rotation;
+      }
+    }, 16); // 约60fps
+  }
+  
+  /**
+   * 停止加载动画
+   */
+  stopLoadingAnimation() {
+    if (this.loadingAnimationTimer) {
+      clearInterval(this.loadingAnimationTimer);
+      this.loadingAnimationTimer = null;
     }
   }
   
@@ -631,6 +767,12 @@ class GameStartUI {
       this.userProfileDialog.parent.removeChild(this.userProfileDialog);
     }
     
+    // 移除登录弹窗
+    if (this.loginDialog && this.loginDialog.parent) {
+      this.loginDialog.parent.removeChild(this.loginDialog);
+      this.stopLoadingAnimation();
+    }
+    
     // 移除微信原生按钮
     if (this.wxUserInfoButton) {
       this.wxUserInfoButton.destroy();
@@ -719,6 +861,43 @@ class GameStartUI {
     title.anchor.set(0.5, 0);
     title.position.set(0, -120);
     
+    // 创建关闭按钮
+    const closeButton = new PIXI.Container();
+    closeButton.position.set(180, -130);
+    
+    // 关闭按钮底色
+    const closeBg = new PIXI.Graphics();
+    closeBg.beginFill(0xEEEEEE);
+    closeBg.lineStyle(2, 0x999999);
+    closeBg.drawCircle(0, 0, 15);
+    closeBg.endFill();
+    
+    // 关闭按钮X形状
+    const closeX = new PIXI.Graphics();
+    closeX.lineStyle(3, 0x666666);
+    closeX.moveTo(-6, -6);
+    closeX.lineTo(6, 6);
+    closeX.moveTo(6, -6);
+    closeX.lineTo(-6, 6);
+    
+    // 添加点击区域
+    closeButton.hitArea = new PIXI.Rectangle(-15, -15, 30, 30);
+    
+    // 添加到关闭按钮容器
+    closeButton.addChild(closeBg, closeX);
+    
+    // 按钮交互
+    closeButton.interactive = true;
+    closeButton.buttonMode = true;
+    
+    // 设置指针事件
+    closeButton.on('pointerdown', () => {
+      this.hideMultiplayerOptionsDialog();
+    });
+    
+    // 保存引用便于触摸事件处理
+    this.closeOptionsButton = closeButton;
+    
     // 创建在线匹配按钮
     this.onlineMatchBtn = new Button({
       text: '在线匹配',
@@ -740,7 +919,7 @@ class GameStartUI {
     this.createRoomBtn.position.set(0, 50);
     
     // 添加到弹窗容器
-    this.multiplayerOptionsDialog.addChild(background, panel, title, this.onlineMatchBtn, this.createRoomBtn);
+    this.multiplayerOptionsDialog.addChild(background, panel, title, this.onlineMatchBtn, this.createRoomBtn, closeButton);
     
     // 默认隐藏
     this.multiplayerOptionsDialog.visible = false;
@@ -759,6 +938,10 @@ class GameStartUI {
     
     // 设置位置
     this.multiplayerOptionsDialog.position.set(screen.width / 2, screen.height / 2);
+    
+    // 添加动画效果
+    this.applyDialogAnimation(this.multiplayerOptionsDialog);
+    
     this.multiplayerOptionsDialog.visible = true;
   }
   
@@ -893,6 +1076,10 @@ class GameStartUI {
     
     // 设置位置
     this.matchingDialog.position.set(screen.width / 2, screen.height / 2);
+    
+    // 添加动画效果
+    this.applyDialogAnimation(this.matchingDialog);
+    
     this.matchingDialog.visible = true;
     
     // 开始倒计时
@@ -1140,6 +1327,10 @@ class GameStartUI {
     
     // 设置位置
     this.roomDialog.position.set(screen.width / 2, screen.height / 2);
+    
+    // 添加动画效果
+    this.applyDialogAnimation(this.roomDialog);
+    
     this.roomDialog.visible = true;
   }
   
@@ -1258,6 +1449,19 @@ class GameStartUI {
     
     // 如果多人模式弹窗可见
     if (this.multiplayerOptionsDialog && this.multiplayerOptionsDialog.visible) {
+      // 检查是否点击了关闭按钮
+      if (this._checkButtonHit(x, y, this.multiplayerOptionsDialog, this.closeOptionsButton)) {
+        if (isDown) {
+          // 按下效果，可以稍微缩小按钮
+          this.closeOptionsButton.scale.set(0.9);
+        } else {
+          // 弹起效果，恢复按钮大小并触发点击
+          this.closeOptionsButton.scale.set(1.0);
+          this.hideMultiplayerOptionsDialog();
+        }
+        return; // 处理完关闭按钮点击后直接返回
+      }
+      
       // 检查是否点击了在线匹配按钮
       if (this._checkButtonHit(x, y, this.multiplayerOptionsDialog, this.onlineMatchBtn)) {
         if (isDown) {
@@ -1470,6 +1674,39 @@ class GameStartUI {
     
     this.isVisible = true;
     this._updatePosition();
+  }
+
+  /**
+   * 为弹窗添加弹出动画效果
+   * @param {PIXI.Container} dialog - 弹窗容器
+   */
+  applyDialogAnimation(dialog) {
+    // 查找对话框中的面板（通常是第二个子元素，第一个是背景）
+    const panel = dialog.children.find(child => child instanceof PIXI.Graphics && child !== dialog.children[0]);
+    
+    if (!panel) return;
+    
+    // 将动画应用于面板及其后的所有子元素（除背景外的所有内容）
+    const elementsToAnimate = dialog.children.filter(child => child !== dialog.children[0]);
+    
+    // 初始状态
+    elementsToAnimate.forEach(element => {
+      element.scale.set(0.5);
+      element.alpha = 0;
+    });
+    
+    // 使用popmotion的animate进行动画
+    animate({
+      from: { scale: 0.5, alpha: 0 },
+      to: { scale: 1, alpha: 1 },
+      duration: 300,
+      onUpdate: (value) => {
+        elementsToAnimate.forEach(element => {
+          element.scale.set(value.scale);
+          element.alpha = value.alpha;
+        });
+      }
+    });
   }
 }
 
