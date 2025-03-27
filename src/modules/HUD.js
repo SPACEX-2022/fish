@@ -334,7 +334,8 @@ class HUD {
       strokeThickness: 5
     });
     
-    timeText.position.set(screen.width - 140, 20);
+    // 将时间文本放在退出按钮左侧，避免重叠
+    timeText.position.set(screen.width - 200, 20);
     this.container.addChild(timeText);
     this.elements.timeText = timeText;
   }
@@ -554,11 +555,11 @@ class HUD {
     overlay.drawRect(0, 0, screen.width, screen.height);
     overlay.endFill();
     
-    // 创建计分板面板
+    // 创建计分板面板 - 减小高度，确保不会溢出屏幕
     const panel = new PIXI.Graphics();
     panel.beginFill(0xFFFFFF);
     panel.lineStyle(2, 0x999999);
-    panel.drawRoundedRect(screen.width / 2 - 200, screen.height / 2 - 250, 400, 500, 10);
+    panel.drawRoundedRect(screen.width / 2 - 200, screen.height / 2 - 220, 400, 440, 10);
     panel.endFill();
     
     // 创建标题文本
@@ -569,16 +570,17 @@ class HUD {
       fontWeight: 'bold'
     });
     titleText.anchor.set(0.5, 0);
-    titleText.position.set(screen.width / 2, screen.height / 2 - 230);
+    titleText.position.set(screen.width / 2, screen.height / 2 - 200);
     
-    // 创建分数文本
-    const scoreText = new PIXI.Text(`最终得分: ${score}`, {
+    // 创建分数文本 - 突出显示玩家的分数
+    const scoreText = new PIXI.Text(`您的得分: ${score}`, {
       fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
-      fontSize: 24,
-      fill: 0x333333
+      fontSize: 28,
+      fill: 0xFF8C00,  // 使用橙色突出显示
+      fontWeight: 'bold'
     });
     scoreText.anchor.set(0.5, 0);
-    scoreText.position.set(screen.width / 2, screen.height / 2 - 180);
+    scoreText.position.set(screen.width / 2, screen.height / 2 - 150);
     
     // 创建排行榜标题
     const rankingTitle = new PIXI.Text('排行榜', {
@@ -588,11 +590,11 @@ class HUD {
       fontWeight: 'bold'
     });
     rankingTitle.anchor.set(0.5, 0);
-    rankingTitle.position.set(screen.width / 2, screen.height / 2 - 140);
+    rankingTitle.position.set(screen.width / 2, screen.height / 2 - 110);
     
     // 创建排行榜容器
     const rankListContainer = new PIXI.Container();
-    rankListContainer.position.set(screen.width / 2 - 180, screen.height / 2 - 100);
+    rankListContainer.position.set(screen.width / 2 - 180, screen.height / 2 - 80);
     
     // 添加排行榜表头
     const headerContainer = new PIXI.Container();
@@ -625,20 +627,25 @@ class HUD {
     headerContainer.addChild(headerBg, rankHeader, nameHeader, scoreHeader);
     rankListContainer.addChild(headerContainer);
     
-    // 添加排行榜数据
-    for (let i = 0; i < Math.min(rankings.length, 8); i++) {
+    // 添加排行榜数据 - 只显示前4条数据
+    for (let i = 0; i < Math.min(rankings.length, 4); i++) {
       const rowContainer = new PIXI.Container();
       rowContainer.position.set(0, 40 + i * 40);
       
+      // 检查当前行是否是当前玩家（分数相同）
+      const isCurrentPlayer = rankings[i].score === score;
+      
+      // 设置背景色，当前玩家使用高亮颜色
       const rowBg = new PIXI.Graphics();
-      rowBg.beginFill(i % 2 === 0 ? 0xFFFFFF : 0xF5F5F5);
+      rowBg.beginFill(isCurrentPlayer ? 0xFFE0B2 : (i % 2 === 0 ? 0xFFFFFF : 0xF5F5F5));
       rowBg.drawRect(0, 0, 360, 35);
       rowBg.endFill();
       
       const rankText = new PIXI.Text(`${i + 1}`, {
         fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
         fontSize: 16,
-        fill: 0x333333
+        fill: isCurrentPlayer ? 0xFF8C00 : 0x333333,
+        fontWeight: isCurrentPlayer ? 'bold' : 'normal'
       });
       rankText.position.set(20, 8);
       
@@ -660,16 +667,30 @@ class HUD {
       const nameText = new PIXI.Text(rankings[i].nickname || `玩家${i+1}`, {
         fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
         fontSize: 16,
-        fill: 0x333333
+        fill: isCurrentPlayer ? 0xFF8C00 : 0x333333,
+        fontWeight: isCurrentPlayer ? 'bold' : 'normal'
       });
       nameText.position.set(90, 8);
       
       const scoreText = new PIXI.Text(`${rankings[i].score}`, {
         fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
         fontSize: 16,
-        fill: 0x333333
+        fill: isCurrentPlayer ? 0xFF8C00 : 0x333333,
+        fontWeight: isCurrentPlayer ? 'bold' : 'normal'
       });
       scoreText.position.set(300, 8);
+      
+      // 如果是当前玩家，添加"(您)"标记
+      if (isCurrentPlayer) {
+        const currentPlayerMark = new PIXI.Text("(您)", {
+          fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+          fontSize: 14,
+          fill: 0xFF8C00,
+          fontWeight: 'bold'
+        });
+        currentPlayerMark.position.set(nameText.width + nameText.x + 10, 9);
+        rowContainer.addChild(currentPlayerMark);
+      }
       
       rowContainer.addChild(rowBg, rankText, avatarBg);
       if (avatar) rowContainer.addChild(avatar);
@@ -678,12 +699,12 @@ class HUD {
       rankListContainer.addChild(rowContainer);
     }
     
-    // 创建"主菜单"按钮
+    // 创建"主菜单"按钮 - 调整位置，确保在屏幕内
     const mainMenuButton = new PIXI.Graphics();
     mainMenuButton.beginFill(0x4CAF50);
     mainMenuButton.drawRoundedRect(0, 0, 130, 50, 5);
     mainMenuButton.endFill();
-    mainMenuButton.position.set(screen.width / 2 - 150, screen.height / 2 + 200);
+    mainMenuButton.position.set(screen.width / 2 - 150, screen.height / 2 + 150);
     mainMenuButton.interactive = true;
     mainMenuButton.buttonMode = true;
     
@@ -696,12 +717,12 @@ class HUD {
     mainMenuText.position.set(65, 25);
     mainMenuButton.addChild(mainMenuText);
     
-    // 创建"再来一局"按钮
+    // 创建"再来一局"按钮 - 调整位置，确保在屏幕内
     const restartButton = new PIXI.Graphics();
     restartButton.beginFill(0x2196F3);
     restartButton.drawRoundedRect(0, 0, 130, 50, 5);
     restartButton.endFill();
-    restartButton.position.set(screen.width / 2 + 20, screen.height / 2 + 200);
+    restartButton.position.set(screen.width / 2 + 20, screen.height / 2 + 150);
     restartButton.interactive = true;
     restartButton.buttonMode = true;
     

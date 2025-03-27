@@ -6,7 +6,7 @@ import { showToast } from './ui';
 import { wxLogin } from '../api/auth'; // 导入登录API
 import { HeartbeatConnection } from '../api/heartbeat'; // 导入心跳连接API
 import { getWsUrl } from '../api/index'; // 导入HTTP客户端
-import { getStorageSync } from '../util/storage';
+import { getStorageSync, setStorageSync } from '../util/storage';
 import { defaultFontFamily } from '../util/constants';
 /**
  * 游戏开始界面
@@ -257,6 +257,7 @@ class GameStartUI {
             success: profileRes => {
               console.log('获取用户信息成功', profileRes.userInfo);
               this.userProfile = profileRes.userInfo; // 保存用户信息
+              setStorageSync('userProfile', JSON.stringify(this.userProfile));
               wx.hideLoading();
               
               // 获取用户信息后继续登录流程

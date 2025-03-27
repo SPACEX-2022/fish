@@ -194,6 +194,7 @@ function startSinglePlayerGame() {
             console.log('章鱼被击杀，触发扣分效果');
             // 播放墨水音效
             audioManager.playEffect('ink', 'assets/mp3/sfx_ink.mp3');
+            
             // 扣除分数，而不是应用墨水效果
             const penaltyScore = 50; // 惩罚分数
             player.score = Math.max(0, player.score - penaltyScore); // 确保分数不会变为负数
@@ -209,6 +210,9 @@ function startSinglePlayerGame() {
             } catch (error) {
               console.error('触发长振动失败:', error);
             }
+            
+            // 章鱼被击杀时已经扣除分数，所以不应该再显示加分动画
+            return; // 直接返回，不执行后面显示得分的部分
           } else {
             // 普通鱼播放金币音效
             audioManager.playEffect('coin', 'assets/mp3/coin.mp3');
@@ -705,15 +709,17 @@ function handleGameTimeUp(finalScore: number) {
   // 停止游戏
   isGameStarted = false;
   
-  // 显示排行榜
-  // 这里可以添加API调用来获取真实排行数据
+  // 创建模拟排行榜数据
+  // 确保当前玩家的分数在排行榜中
   const mockRankings = [
     { nickname: '玩家1', score: finalScore + 200, avatar: null },
-    { nickname: '玩家2', score: finalScore, avatar: null },
+    { nickname: '当前玩家', score: finalScore, avatar: null }, // 使用当前玩家的实际分数
     { nickname: '玩家3', score: finalScore - 100, avatar: null },
-    { nickname: '玩家4', score: finalScore - 200, avatar: null },
-    { nickname: '玩家5', score: finalScore - 300, avatar: null }
+    { nickname: '玩家4', score: finalScore - 200, avatar: null }
   ];
+  
+  // 根据分数排序
+  mockRankings.sort((a, b) => b.score - a.score);
   
   // 显示计分板
   if (hud) {
