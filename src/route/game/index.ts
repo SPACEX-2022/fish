@@ -79,7 +79,9 @@ function init() {
   
   // 初始化HUD但不显示，等游戏开始后再显示
   hud = new HUD({
-    comboTimeout: 3000 // 3秒连击超时时间
+    comboTimeout: 3000, // 3秒连击超时时间
+    gameTimeLimit: 60000, // 60秒游戏时间
+    onGameTimeUp: handleGameTimeUp // 游戏时间结束回调
   });
   
   // 设置触摸/点击事件，但现在不会触发射击
@@ -155,6 +157,27 @@ function startSinglePlayerGame() {
       hud.show(root);
       console.log('HUD显示完成');
       
+      // 设置退出游戏回调
+      hud.setOnExitGameCallback(() => {
+        console.log('玩家点击退出游戏');
+        exitGame();
+      });
+      
+      // 设置重新开始游戏回调
+      hud.setOnRestartGameCallback(() => {
+        console.log('玩家点击重新开始游戏');
+        restartGame();
+      });
+      
+      // 设置返回主菜单回调
+      hud.setOnReturnToMainMenuCallback(() => {
+        console.log('玩家点击返回主菜单');
+        exitGame();
+      });
+      
+      // 启动游戏计时器
+      hud.startGameTimer();
+      
       // 设置玩家击中鱼的回调
       player.setOnFishHitCallback((fish: any, isDead: boolean, score: number) => {
         console.log(`鱼被击中回调：isDead=${isDead}, score=${score}`);
@@ -168,11 +191,17 @@ function startSinglePlayerGame() {
           
           // 检查是否是章鱼，如果是则触发墨水效果
           if (fish && fish.fishCategory === FISH_CATEGORIES.OCTOPUS) {
-            console.log('章鱼被击杀，触发墨水效果');
+            console.log('章鱼被击杀，触发扣分效果');
             // 播放墨水音效
             audioManager.playEffect('ink', 'assets/mp3/sfx_ink.mp3');
-            // 应用墨水滤镜效果
-            applyInkEffect();
+            // 扣除分数，而不是应用墨水效果
+            const penaltyScore = 50; // 惩罚分数
+            player.score = Math.max(0, player.score - penaltyScore); // 确保分数不会变为负数
+            hud.updateScore(player.score);
+            
+            // 显示扣分提示
+            showFloatingScore(fish.sprite.x, fish.sprite.y, -penaltyScore);
+            
             // 触发长振动
             try {
               wx.vibrateLong();
@@ -664,6 +693,84 @@ function fadeOutInkEffect() {
   
   // 添加到ticker
   ticker.add(fadeOutTicker);
+}
+
+/**
+ * 处理游戏时间结束
+ * @param {number} finalScore - 最终得分
+ */
+function handleGameTimeUp(finalScore: number) {
+  console.log('游戏时间结束，最终得分:', finalScore);
+  
+  // 停止游戏
+  isGameStarted = false;
+  
+  // 显示排行榜
+  // 这里可以添加API调用来获取真实排行数据
+  const mockRankings = [
+    { nickname: '玩家1', score: finalScore + 200, avatar: null },
+    { nickname: '玩家2', score: finalScore, avatar: null },
+    { nickname: '玩家3', score: finalScore - 100, avatar: null },
+    { nickname: '玩家4', score: finalScore - 200, avatar: null },
+    { nickname: '玩家5', score: finalScore - 300, avatar: null }
+  ];
+  
+  // 显示计分板
+  if (hud) {
+    hud.showScoreboard(finalScore, mockRankings);
+  }
+}
+
+/**
+ * 退出游戏，返回主菜单
+ */
+function exitGame() {
+  console.log('退出游戏，返回主菜单');
+  
+  // 停止游戏
+  isGameStarted = false;
+  
+  // 清理HUD
+  if (hud) {
+    hud.hide();
+  }
+  
+  // 清理玩家
+  if (player) {
+    player = null;
+  }
+  
+  // 显示游戏开始界面
+  if (gameStartUI) {
+    gameStartUI.show(root);
+    // 应用模糊滤镜到鱼群
+    gameStartUI.applyBlurFilter(fishContainer);
+  }
+}
+
+/**
+ * 重新开始游戏
+ */
+function restartGame() {
+  console.log('重新开始游戏');
+  
+  // 停止当前游戏
+  isGameStarted = false;
+  
+  // 重置玩家
+  if (player) {
+    player = null;
+  }
+  
+  // 隐藏计分板
+  if (hud) {
+    hud.hideScoreboard();
+  }
+  
+  // 延迟一点时间再开始新游戏，避免立即点击
+  setTimeout(() => {
+    startSinglePlayerGame();
+  }, 500);
 }
 
 export function show() {

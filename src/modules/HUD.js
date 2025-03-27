@@ -30,9 +30,16 @@ class HUD {
     // 初始化基本UI元素
     this.initScoreDisplay();
     this.initComboDisplay();
+    this.initExitButton();  // 添加退出按钮
     
     // 可由外部调用的更新回调，可以在这里添加更多更新逻辑
     this.updateCallbacks = {};
+    
+    // 游戏时间相关
+    this.gameTime = 0;
+    this.gameTimeLimit = options.gameTimeLimit || 60000; // 默认60秒
+    this.gameTimerActive = false;
+    this.onGameTimeUp = options.onGameTimeUp || null;
     
     // 注册到ticker以便更新连击计时器
     ticker.add(this.update.bind(this));
@@ -133,6 +140,206 @@ class HUD {
   }
   
   /**
+   * 初始化退出按钮
+   */
+  initExitButton() {
+    // 创建退出按钮
+    const exitButton = new PIXI.Container();
+    exitButton.position.set(screen.width - 60, 40);
+    
+    // 创建退出按钮背景
+    const buttonBg = new PIXI.Graphics();
+    buttonBg.beginFill(0xFF3333, 0.7);
+    buttonBg.lineStyle(2, 0xFFFFFF);
+    buttonBg.drawCircle(0, 0, 20);
+    buttonBg.endFill();
+    
+    // 创建X图标
+    const exitIcon = new PIXI.Graphics();
+    exitIcon.lineStyle(3, 0xFFFFFF);
+    exitIcon.moveTo(-8, -8);
+    exitIcon.lineTo(8, 8);
+    exitIcon.moveTo(8, -8);
+    exitIcon.lineTo(-8, 8);
+    
+    // 添加到退出按钮容器
+    exitButton.addChild(buttonBg, exitIcon);
+    exitButton.interactive = true;
+    exitButton.buttonMode = true;
+    
+    // 点击事件
+    exitButton.on('pointerdown', this.onExitButtonClick.bind(this));
+    
+    // 添加到主容器
+    this.container.addChild(exitButton);
+    this.elements.exitButton = exitButton;
+  }
+  
+  /**
+   * 退出按钮点击处理
+   */
+  onExitButtonClick() {
+    // 显示确认对话框
+    this.showExitConfirmDialog();
+  }
+  
+  /**
+   * 显示退出确认对话框
+   */
+  showExitConfirmDialog() {
+    // 如果已存在确认对话框，则不重复创建
+    if (this.elements.exitConfirmDialog) {
+      return;
+    }
+    
+    // 创建对话框容器
+    const dialogContainer = new PIXI.Container();
+    dialogContainer.zIndex = 200;
+    
+    // 创建半透明背景
+    const overlay = new PIXI.Graphics();
+    overlay.beginFill(0x000000, 0.7);
+    overlay.drawRect(0, 0, screen.width, screen.height);
+    overlay.endFill();
+    
+    // 创建对话框面板
+    const panel = new PIXI.Graphics();
+    panel.beginFill(0xFFFFFF);
+    panel.lineStyle(2, 0x999999);
+    panel.drawRoundedRect(screen.width / 2 - 150, screen.height / 2 - 100, 300, 200, 10);
+    panel.endFill();
+    
+    // 创建标题文本
+    const titleText = new PIXI.Text('确认退出', {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 24,
+      fill: 0x333333,
+      fontWeight: 'bold'
+    });
+    titleText.anchor.set(0.5, 0);
+    titleText.position.set(screen.width / 2, screen.height / 2 - 80);
+    
+    // 创建提示文本
+    const messageText = new PIXI.Text('确定要退出游戏吗？\n当前游戏进度将不会保存。', {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 18,
+      fill: 0x333333,
+      align: 'center'
+    });
+    messageText.anchor.set(0.5, 0);
+    messageText.position.set(screen.width / 2, screen.height / 2 - 30);
+    
+    // 创建确认按钮
+    const confirmButton = new PIXI.Graphics();
+    confirmButton.beginFill(0xFF3333);
+    confirmButton.drawRoundedRect(0, 0, 120, 40, 5);
+    confirmButton.endFill();
+    confirmButton.position.set(screen.width / 2 - 130, screen.height / 2 + 30);
+    confirmButton.interactive = true;
+    confirmButton.buttonMode = true;
+    
+    const confirmText = new PIXI.Text('确认', {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 18,
+      fill: 0xFFFFFF
+    });
+    confirmText.anchor.set(0.5);
+    confirmText.position.set(60, 20);
+    confirmButton.addChild(confirmText);
+    
+    // 创建取消按钮
+    const cancelButton = new PIXI.Graphics();
+    cancelButton.beginFill(0x999999);
+    cancelButton.drawRoundedRect(0, 0, 120, 40, 5);
+    cancelButton.endFill();
+    cancelButton.position.set(screen.width / 2 + 10, screen.height / 2 + 30);
+    cancelButton.interactive = true;
+    cancelButton.buttonMode = true;
+    
+    const cancelText = new PIXI.Text('取消', {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 18,
+      fill: 0xFFFFFF
+    });
+    cancelText.anchor.set(0.5);
+    cancelText.position.set(60, 20);
+    cancelButton.addChild(cancelText);
+    
+    // 添加点击事件
+    confirmButton.on('pointerdown', () => {
+      this.hideExitConfirmDialog();
+      // 触发游戏退出回调
+      if (typeof this.onExitGame === 'function') {
+        this.onExitGame();
+      }
+    });
+    
+    cancelButton.on('pointerdown', () => {
+      this.hideExitConfirmDialog();
+    });
+    
+    // 添加所有元素到对话框容器
+    dialogContainer.addChild(overlay, panel, titleText, messageText, confirmButton, cancelButton);
+    
+    // 添加到主容器
+    this.container.addChild(dialogContainer);
+    this.elements.exitConfirmDialog = dialogContainer;
+  }
+  
+  /**
+   * 隐藏退出确认对话框
+   */
+  hideExitConfirmDialog() {
+    if (this.elements.exitConfirmDialog && this.elements.exitConfirmDialog.parent) {
+      this.elements.exitConfirmDialog.parent.removeChild(this.elements.exitConfirmDialog);
+      this.elements.exitConfirmDialog = null;
+    }
+  }
+  
+  /**
+   * 设置游戏退出回调函数
+   * @param {Function} callback - 退出游戏时的回调函数
+   */
+  setOnExitGameCallback(callback) {
+    if (typeof callback === 'function') {
+      this.onExitGame = callback;
+    }
+  }
+  
+  /**
+   * 启动游戏计时器
+   */
+  startGameTimer() {
+    this.gameTime = 0;
+    this.gameTimerActive = true;
+    this.initTimeDisplay();
+  }
+  
+  /**
+   * 初始化时间显示
+   */
+  initTimeDisplay() {
+    // 如果已存在时间显示，则不重复创建
+    if (this.elements.timeText) {
+      return;
+    }
+    
+    // 创建时间文本
+    const timeText = new PIXI.Text('时间: 60', {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 24,
+      fill: 0xFFFFFF,
+      fontWeight: 'bold',
+      stroke: 0x000000,
+      strokeThickness: 5
+    });
+    
+    timeText.position.set(screen.width - 140, 20);
+    this.container.addChild(timeText);
+    this.elements.timeText = timeText;
+  }
+  
+  /**
    * 更新HUD
    * @param {number} delta - 帧时间差
    */
@@ -146,12 +353,47 @@ class HUD {
       }
     }
     
+    // 更新游戏时间
+    if (this.gameTimerActive) {
+      this.gameTime += ticker.deltaMS;
+      
+      // 更新时间显示
+      if (this.elements.timeText) {
+        const remainingSeconds = Math.max(0, Math.ceil((this.gameTimeLimit - this.gameTime) / 1000));
+        this.elements.timeText.text = `时间: ${remainingSeconds}`;
+        
+        // 时间临近结束时变红
+        if (remainingSeconds <= 10) {
+          this.elements.timeText.style.fill = 0xFF0000;
+        }
+      }
+      
+      // 检查游戏是否结束
+      if (this.gameTime >= this.gameTimeLimit) {
+        this.gameTimerActive = false;
+        // 触发游戏结束回调
+        if (typeof this.onGameTimeUp === 'function') {
+          this.onGameTimeUp(this.score);
+        }
+      }
+    }
+    
     // 执行注册的更新回调
     Object.values(this.updateCallbacks).forEach(callback => {
       if (typeof callback === 'function') {
         callback(delta);
       }
     });
+  }
+  
+  /**
+   * 设置游戏时间到期回调函数
+   * @param {Function} callback - 时间到期回调
+   */
+  setOnGameTimeUpCallback(callback) {
+    if (typeof callback === 'function') {
+      this.onGameTimeUp = callback;
+    }
   }
   
   /**
@@ -288,6 +530,242 @@ class HUD {
       };
       
       ticker.add(pulseAnimTicker);
+    }
+  }
+  
+  /**
+   * 显示游戏结束计分板
+   * @param {number} score - 最终得分
+   * @param {Array} rankings - 排名数据，格式为[{nickname, score, avatar}, ...]
+   */
+  showScoreboard(score, rankings = []) {
+    // 如果已存在计分板，则不重复创建
+    if (this.elements.scoreboard) {
+      return;
+    }
+    
+    // 创建计分板容器
+    const scoreboardContainer = new PIXI.Container();
+    scoreboardContainer.zIndex = 200;
+    
+    // 创建半透明背景
+    const overlay = new PIXI.Graphics();
+    overlay.beginFill(0x000000, 0.8);
+    overlay.drawRect(0, 0, screen.width, screen.height);
+    overlay.endFill();
+    
+    // 创建计分板面板
+    const panel = new PIXI.Graphics();
+    panel.beginFill(0xFFFFFF);
+    panel.lineStyle(2, 0x999999);
+    panel.drawRoundedRect(screen.width / 2 - 200, screen.height / 2 - 250, 400, 500, 10);
+    panel.endFill();
+    
+    // 创建标题文本
+    const titleText = new PIXI.Text('游戏结束', {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 32,
+      fill: 0x333333,
+      fontWeight: 'bold'
+    });
+    titleText.anchor.set(0.5, 0);
+    titleText.position.set(screen.width / 2, screen.height / 2 - 230);
+    
+    // 创建分数文本
+    const scoreText = new PIXI.Text(`最终得分: ${score}`, {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 24,
+      fill: 0x333333
+    });
+    scoreText.anchor.set(0.5, 0);
+    scoreText.position.set(screen.width / 2, screen.height / 2 - 180);
+    
+    // 创建排行榜标题
+    const rankingTitle = new PIXI.Text('排行榜', {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 22,
+      fill: 0x333333,
+      fontWeight: 'bold'
+    });
+    rankingTitle.anchor.set(0.5, 0);
+    rankingTitle.position.set(screen.width / 2, screen.height / 2 - 140);
+    
+    // 创建排行榜容器
+    const rankListContainer = new PIXI.Container();
+    rankListContainer.position.set(screen.width / 2 - 180, screen.height / 2 - 100);
+    
+    // 添加排行榜表头
+    const headerContainer = new PIXI.Container();
+    const headerBg = new PIXI.Graphics();
+    headerBg.beginFill(0xEEEEEE);
+    headerBg.drawRect(0, 0, 360, 30);
+    headerBg.endFill();
+    
+    const rankHeader = new PIXI.Text('排名', {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 16,
+      fill: 0x333333
+    });
+    rankHeader.position.set(20, 5);
+    
+    const nameHeader = new PIXI.Text('玩家', {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 16,
+      fill: 0x333333
+    });
+    nameHeader.position.set(100, 5);
+    
+    const scoreHeader = new PIXI.Text('分数', {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 16,
+      fill: 0x333333
+    });
+    scoreHeader.position.set(300, 5);
+    
+    headerContainer.addChild(headerBg, rankHeader, nameHeader, scoreHeader);
+    rankListContainer.addChild(headerContainer);
+    
+    // 添加排行榜数据
+    for (let i = 0; i < Math.min(rankings.length, 8); i++) {
+      const rowContainer = new PIXI.Container();
+      rowContainer.position.set(0, 40 + i * 40);
+      
+      const rowBg = new PIXI.Graphics();
+      rowBg.beginFill(i % 2 === 0 ? 0xFFFFFF : 0xF5F5F5);
+      rowBg.drawRect(0, 0, 360, 35);
+      rowBg.endFill();
+      
+      const rankText = new PIXI.Text(`${i + 1}`, {
+        fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+        fontSize: 16,
+        fill: 0x333333
+      });
+      rankText.position.set(20, 8);
+      
+      // 创建头像
+      const avatarBg = new PIXI.Graphics();
+      avatarBg.beginFill(0xDDDDDD);
+      avatarBg.drawCircle(65, 17, 15);
+      avatarBg.endFill();
+      
+      // 如果有头像，则加载头像
+      let avatar;
+      if (rankings[i].avatar) {
+        avatar = PIXI.Sprite.from(rankings[i].avatar);
+        avatar.width = avatar.height = 30;
+        avatar.anchor.set(0.5);
+        avatar.position.set(65, 17);
+      }
+      
+      const nameText = new PIXI.Text(rankings[i].nickname || `玩家${i+1}`, {
+        fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+        fontSize: 16,
+        fill: 0x333333
+      });
+      nameText.position.set(90, 8);
+      
+      const scoreText = new PIXI.Text(`${rankings[i].score}`, {
+        fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+        fontSize: 16,
+        fill: 0x333333
+      });
+      scoreText.position.set(300, 8);
+      
+      rowContainer.addChild(rowBg, rankText, avatarBg);
+      if (avatar) rowContainer.addChild(avatar);
+      rowContainer.addChild(nameText, scoreText);
+      
+      rankListContainer.addChild(rowContainer);
+    }
+    
+    // 创建"主菜单"按钮
+    const mainMenuButton = new PIXI.Graphics();
+    mainMenuButton.beginFill(0x4CAF50);
+    mainMenuButton.drawRoundedRect(0, 0, 130, 50, 5);
+    mainMenuButton.endFill();
+    mainMenuButton.position.set(screen.width / 2 - 150, screen.height / 2 + 200);
+    mainMenuButton.interactive = true;
+    mainMenuButton.buttonMode = true;
+    
+    const mainMenuText = new PIXI.Text('主菜单', {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 20,
+      fill: 0xFFFFFF
+    });
+    mainMenuText.anchor.set(0.5);
+    mainMenuText.position.set(65, 25);
+    mainMenuButton.addChild(mainMenuText);
+    
+    // 创建"再来一局"按钮
+    const restartButton = new PIXI.Graphics();
+    restartButton.beginFill(0x2196F3);
+    restartButton.drawRoundedRect(0, 0, 130, 50, 5);
+    restartButton.endFill();
+    restartButton.position.set(screen.width / 2 + 20, screen.height / 2 + 200);
+    restartButton.interactive = true;
+    restartButton.buttonMode = true;
+    
+    const restartText = new PIXI.Text('再来一局', {
+      fontFamily: "'PingFang SC', 'Hiragino Sans GB', 'Chalkboard SE', 'MarkerFelt-Thin', 'Comic Sans MS', 'Roboto Rounded', 'Noto Sans SC', '华文圆体', 'Microsoft YaHei', sans-serif",
+      fontSize: 20,
+      fill: 0xFFFFFF
+    });
+    restartText.anchor.set(0.5);
+    restartText.position.set(65, 25);
+    restartButton.addChild(restartText);
+    
+    // 添加点击事件
+    mainMenuButton.on('pointerdown', () => {
+      this.hideScoreboard();
+      // 触发回到主菜单回调
+      if (typeof this.onReturnToMainMenu === 'function') {
+        this.onReturnToMainMenu();
+      }
+    });
+    
+    restartButton.on('pointerdown', () => {
+      this.hideScoreboard();
+      // 触发重新开始游戏回调
+      if (typeof this.onRestartGame === 'function') {
+        this.onRestartGame();
+      }
+    });
+    
+    // 添加所有元素到计分板容器
+    scoreboardContainer.addChild(overlay, panel, titleText, scoreText, rankingTitle, rankListContainer, mainMenuButton, restartButton);
+    
+    // 添加到主容器
+    this.container.addChild(scoreboardContainer);
+    this.elements.scoreboard = scoreboardContainer;
+  }
+  
+  /**
+   * 隐藏计分板
+   */
+  hideScoreboard() {
+    if (this.elements.scoreboard && this.elements.scoreboard.parent) {
+      this.elements.scoreboard.parent.removeChild(this.elements.scoreboard);
+      this.elements.scoreboard = null;
+    }
+  }
+  
+  /**
+   * 设置返回主菜单回调函数
+   * @param {Function} callback - 返回主菜单回调
+   */
+  setOnReturnToMainMenuCallback(callback) {
+    if (typeof callback === 'function') {
+      this.onReturnToMainMenu = callback;
+    }
+  }
+  
+  /**
+   * 设置重新开始游戏回调函数
+   * @param {Function} callback - 重新开始游戏回调
+   */
+  setOnRestartGameCallback(callback) {
+    if (typeof callback === 'function') {
+      this.onRestartGame = callback;
     }
   }
   
