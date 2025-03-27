@@ -247,8 +247,6 @@ class GameStartUI {
    * 获取用户头像和昵称信息
    */
   getUserProfileInfo() {
-    // 显示登录弹窗
-    this.showLoginDialog();
     
     // 通过 wx.getSetting 查询用户是否已授权头像昵称信息
     wx.getSetting({
@@ -453,6 +451,9 @@ class GameStartUI {
     try {
       console.log('开始登录');
       
+      // 显示登录弹窗
+      this.showLoginDialog();
+      
       // 调用微信登录获取code
       const loginResult = await wx.login();
       
@@ -488,12 +489,126 @@ class GameStartUI {
       // 隐藏登录弹窗
       this.hideLoginDialog();
       
-      wx.showToast({
-        title: "登录失败，请重试",
-        icon: "none",
-        duration: 2000
-      });
+      // 显示登录失败弹窗
+      this.showLoginFailedDialog();
     }
+  }
+  
+  /**
+   * 创建登录失败弹窗
+   */
+  createLoginFailedDialog() {
+    // 如果已经创建过，不重复创建
+    if (this.loginFailedDialog) return;
+    
+    // 创建弹窗容器
+    this.loginFailedDialog = new PIXI.Container();
+    this.loginFailedDialog.zIndex = 200;
+    
+    // 创建半透明背景
+    const background = new PIXI.Graphics();
+    background.beginFill(0x000000, 0.7);
+    background.drawRect(-screen.width/2, -screen.height/2, screen.width, screen.height);
+    background.endFill();
+    
+    // 创建弹窗面板
+    const panel = new PIXI.Graphics();
+    panel.beginFill(0xFFFFFF);
+    panel.lineStyle(2, 0x999999);
+    panel.drawRoundedRect(-150, -100, 300, 200, 10);
+    panel.endFill();
+    
+    // 创建标题文本
+    const title = new PIXI.Text("登录失败", {
+      fontFamily: defaultFontFamily,
+      fontSize: 20,
+      fontWeight: "bold",
+      fill: 0xFF3333 // 红色标题
+    });
+    title.anchor.set(0.5, 0);
+    title.position.set(0, -90);
+    
+    // 创建错误图标
+    const errorIcon = new PIXI.Graphics();
+    errorIcon.beginFill(0xFF3333);
+    errorIcon.drawCircle(0, -30, 20);
+    errorIcon.endFill();
+    
+    // 绘制X形状
+    const cross = new PIXI.Graphics();
+    cross.lineStyle(4, 0xFFFFFF);
+    cross.moveTo(-10, -40);
+    cross.lineTo(10, -20);
+    cross.moveTo(10, -40);
+    cross.lineTo(-10, -20);
+    
+    // 创建错误提示文本
+    const errorText = new PIXI.Text("网络连接错误，请重试", {
+      fontFamily: defaultFontFamily,
+      fontSize: 16,
+      fill: 0x333333,
+      align: 'center'
+    });
+    errorText.anchor.set(0.5, 0);
+    errorText.position.set(0, 10);
+    
+    // 创建重新登录按钮
+    this.retryLoginBtn = new Button({
+      text: '重新登录',
+      scale: 0.7,
+      onClick: () => {
+        this.onRetryLoginClick();
+      }
+    });
+    this.retryLoginBtn.position.set(0, 60);
+    
+    // 添加到弹窗容器
+    this.loginFailedDialog.addChild(background, panel, title, errorIcon, cross, errorText, this.retryLoginBtn);
+    
+    // 默认隐藏
+    this.loginFailedDialog.visible = false;
+  }
+  
+  /**
+   * 显示登录失败弹窗
+   */
+  showLoginFailedDialog() {
+    // 创建弹窗(如果未创建)
+    this.createLoginFailedDialog();
+    
+    if (!this.loginFailedDialog.parent && this.container.parent) {
+      this.container.parent.addChild(this.loginFailedDialog);
+    }
+    
+    // 设置位置
+    this.loginFailedDialog.position.set(screen.width / 2, screen.height / 2);
+    
+    // 添加动画效果
+    this.applyDialogAnimation(this.loginFailedDialog);
+    
+    this.loginFailedDialog.visible = true;
+  }
+  
+  /**
+   * 隐藏登录失败弹窗
+   */
+  hideLoginFailedDialog() {
+    if (!this.loginFailedDialog) return;
+    
+    this.loginFailedDialog.visible = false;
+  }
+  
+  /**
+   * 重新登录按钮点击处理
+   */
+  onRetryLoginClick() {
+    console.log('重新登录');
+    
+    // 隐藏登录失败弹窗
+    this.hideLoginFailedDialog();
+    
+    // 重新调用登录流程
+    this.login();
   }
   
   /**
@@ -771,6 +886,11 @@ class GameStartUI {
     if (this.loginDialog && this.loginDialog.parent) {
       this.loginDialog.parent.removeChild(this.loginDialog);
       this.stopLoadingAnimation();
+    }
+    
+    // 移除登录失败弹窗
+    if (this.loginFailedDialog && this.loginFailedDialog.parent) {
+      this.loginFailedDialog.parent.removeChild(this.loginFailedDialog);
     }
     
     // 移除微信原生按钮
@@ -1442,6 +1562,19 @@ class GameStartUI {
           this.agreeBtn._onPointerDown();
         } else {
           this.agreeBtn._onPointerUp();
+        }
+      }
+      return;
+    }
+    
+    // 如果登录失败弹窗可见
+    if (this.loginFailedDialog && this.loginFailedDialog.visible) {
+      // 检查是否点击了重新登录按钮
+      if (this._checkButtonHit(x, y, this.loginFailedDialog, this.retryLoginBtn)) {
+        if (isDown) {
+          this.retryLoginBtn._onPointerDown();
+        } else {
+          this.retryLoginBtn._onPointerUp();
         }
       }
       return;
