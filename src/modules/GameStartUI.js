@@ -4,7 +4,7 @@ import { animate } from 'popmotion';
 import { Button } from './ui';
 import { showToast } from './ui';
 import { wxLogin } from '../api/auth'; // 导入登录API
-import { HeartbeatConnection } from '../api/heartbeat'; // 导入心跳连接API
+import { GameSocketConnection } from '../api/GameSocketConnection'; // 导入心跳连接API
 import { getWsUrl } from '../api/index'; // 导入HTTP客户端
 import { getStorageSync, setStorageSync } from '../util/storage';
 import { defaultFontFamily } from '../util/constants';
@@ -71,7 +71,7 @@ class GameStartUI {
     // 状态标志
     this.isVisible = false;
     this.isLoggedIn = false;
-    this.heartbeatConnection = null;
+    this.gameSocketConnection = null;
     this.privacyAuthorized = false; // 添加隐私授权状态
     this.userProfile = null; // 添加用户信息保存
     
@@ -759,33 +759,41 @@ class GameStartUI {
     }
     
     // 创建心跳连接实例
-    this.heartbeatConnection = new HeartbeatConnection(getWsUrl('/ws/heartbeat'), token);
+    this.gameSocketConnection = GameSocketConnection.getInstance(getWsUrl('/ws'), token);
     
-    // 注册事件处理函数
-    this.heartbeatConnection.onConnect(() => {
-      this.updateConnectionStatus(true);
-    });
-    
-    this.heartbeatConnection.onDisconnect(() => {
-      this.updateConnectionStatus(false);
-    });
-    
-    this.heartbeatConnection.onError((error) => {
-      console.error('心跳连接错误', error);
-      this.updateConnectionStatus(false);
-    });
-    
-    // 注册ping更新事件，当ping值变化时更新UI
-    this.heartbeatConnection.onPingUpdate((pingValue) => {
-      this.updatePingDisplay(pingValue);
-    });
-    
-    // 开始连接
-    this.heartbeatConnection.connect();
-    
-    // 显示连接状态UI
-    this.connectionStatusUI.visible = true;
-    this.updateConnectionStatus(false); // 初始状态为离线
+    // 如果已有连接实例，直接使用
+    if (this.gameSocketConnection) {
+      // 注册事件处理函数
+      this.gameSocketConnection.onConnect(() => {
+        this.updateConnectionStatus(true);
+      });
+      
+      this.gameSocketConnection.onDisconnect(() => {
+        this.updateConnectionStatus(false);
+      });
+      
+      this.gameSocketConnection.onError((error) => {
+        console.error('心跳连接错误', error);
+        this.updateConnectionStatus(false);
+      });
+      
+      // 注册ping更新事件，当ping值变化时更新UI
+      this.gameSocketConnection.onPingUpdate((pingValue) => {
+        this.updatePingDisplay(pingValue);
+      });
+      
+      // 开始连接
+      if (!this.gameSocketConnection.isConnectedToServer()) {
+        this.gameSocketConnection.connect();
+      } else {
+        // 已连接，直接更新状态
+        this.updateConnectionStatus(true);
+      }
+      
+      // 显示连接状态UI
+      this.connectionStatusUI.visible = true;
+      this.updateConnectionStatus(this.gameSocketConnection.isConnectedToServer());
+    }
   }
   
   /**
@@ -800,8 +808,8 @@ class GameStartUI {
       // 在线状态 - 绿色
       this.statusIndicator.beginFill(0x00FF00);
       // 如果已连接，尝试获取ping值
-      if (this.heartbeatConnection) {
-        const pingValue = this.heartbeatConnection.getCurrentPing();
+      if (this.gameSocketConnection) {
+        const pingValue = this.gameSocketConnection.getCurrentPing();
         if (pingValue > 0) {
           this.statusText.text = `${pingValue}ms`;
         } else {
@@ -865,11 +873,9 @@ class GameStartUI {
    * 销毁组件，清理资源
    */
   destroy() {
-    // 断开心跳连接
-    if (this.heartbeatConnection) {
-      this.heartbeatConnection.disconnect();
-      this.heartbeatConnection = null;
-    }
+    // 不要断开心跳连接，它是全局共享的
+    // 移除自己注册的事件回调（这部分功能目前GameSocketConnection未提供，
+    // 按理说应该添加offConnect, offDisconnect等方法，但当前可以不处理）
     
     // 移除连接状态UI
     if (this.connectionStatusUI.parent) {
