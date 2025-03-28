@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "set NODE_ENV=development && vite build -w",
-    "build": "vite build",
+    "build": "vite build --mode release",
     "build:ctx": "vite build -w --config vite.ctx.config.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

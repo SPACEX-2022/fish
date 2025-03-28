@@ -381,8 +381,7 @@ export class HttpClient {
   }
 }
 
-export const BASE_URL = 'http://localhost:3000';
-// export const BASE_URL = 'https://www.joy-stream.asia';
+export const BASE_URL = import.meta.env.VITE_API_URL;
 
 export function getWsUrl(url: string) {
   return BASE_URL.replace('http://', 'ws://').replace(/:\d+$/, '') + ':8080' + url;

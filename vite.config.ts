@@ -21,9 +21,9 @@ export default defineConfig({
 	},
 
 	plugins: [
-    replace({
-      preventAssignment: false,
-      'process.env.NODE_ENV': JSON.stringify('production')
-    })
+		replace({
+			preventAssignment: false,
+			'process.env.NODE_ENV': JSON.stringify('production')
+		})
 	]
 })
