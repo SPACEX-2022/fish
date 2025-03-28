@@ -268,6 +268,7 @@ export class HttpClient {
           // 移除非wx.request支持的属性
           const { baseURL, showLoading, loadingText, retry, retryDelay, ...wxRequestConfig } = processedConfig;
           
+          console.log(`请求地址: ${processedConfig.url}`, wxRequestConfig);
           wx.request({
             ...wxRequestConfig,
             success: async (res: any) => {
