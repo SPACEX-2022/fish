@@ -85,7 +85,7 @@ function init() {
     onGameTimeUp: handleGameTimeUp // 游戏时间结束回调
   });
   
-  // 设置触摸/点击事件，但现在不会触发射击
+  // 设置触摸/点击事件
   setupTouchEvents()
 
   ticker.add((delta) => {
@@ -539,61 +539,21 @@ function updateFishes(delta: number) {
  * 设置触摸/点击事件
  */
 function setupTouchEvents() {
-  try {
-    console.log('设置微信触摸事件')
-    wx.onTouchStart((event: any) => {
-      const touch = event.touches[0]
-      console.log('触摸开始:', touch.clientX, touch.clientY);
-      console.log('游戏状态:', isGameStarted ? '已开始' : '未开始');
-      
-      // 如果游戏未开始，则传递触摸事件给UI
-      if (!isGameStarted && gameStartUI) {
-        console.log('将触摸事件传递给UI')
-        gameStartUI.handleTouch(touch.clientX, touch.clientY, true);
-      }
-      // 只有游戏开始后才能发射子弹
-      else if (isGameStarted && player) {
-        console.log('发射子弹')
-        player.shoot(touch.clientX, touch.clientY, root)
-      }
-    })
-    
-    wx.onTouchEnd((event: any) => {
-      // 触摸结束时，如果有触摸点，使用最后一个触摸点
-      const touch = event.changedTouches ? event.changedTouches[0] : null;
-      if (!touch) return;
-      
-      console.log('触摸结束:', touch.clientX, touch.clientY);
-      console.log('游戏状态:', isGameStarted ? '已开始' : '未开始');
-      
-      // 如果游戏未开始，则传递触摸事件给UI
-      if (!isGameStarted && gameStartUI) {
-        console.log('将触摸结束事件传递给UI')
-        gameStartUI.handleTouch(touch.clientX, touch.clientY, false);
-      }
-    })
-  } catch (error) {
-    console.error('设置触摸/点击事件出错:', error)
-    
-    // 在非微信环境下使用鼠标事件模拟
-    try {
-      window.addEventListener('mousedown', (event) => {
-        if (!isGameStarted && gameStartUI) {
-          gameStartUI.handleTouch(event.clientX, event.clientY, true);
-        } else if (isGameStarted && player) {
-          player.shoot(event.clientX, event.clientY, root);
-        }
-      });
-      
-      window.addEventListener('mouseup', (event) => {
-        if (!isGameStarted && gameStartUI) {
-          gameStartUI.handleTouch(event.clientX, event.clientY, false);
-        }
-      });
-    } catch (e) {
-      console.error('设置鼠标事件出错:', e);
+  // 设置root容器为可交互的
+  root.interactive = true;
+  root.interactiveChildren = true;
+  
+  // 监听点击/触摸事件
+  root.on('pointerdown', (event) => {
+    console.log('触摸开始:', event);
+    console.log('游戏状态:', isGameStarted ? '已开始' : '未开始');
+
+    // 只有游戏开始后才能发射子弹
+    if (isGameStarted && player) {
+      console.log('发射子弹')
+      player.shoot(event.x, event.y, root)
     }
-  }
+  });
 }
 
 /**

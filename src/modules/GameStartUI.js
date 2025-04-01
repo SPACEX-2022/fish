@@ -79,31 +79,31 @@ class GameStartUI {
     this.createConnectionStatusUI();
 
     // 在构造完成后自动开始登录流程
-    this.autoLogin = true;
+    // this.autoLogin = true;
 
-    this.showLoginDialog();
-    wx.getPrivacySetting({
-      success: res => {
-        console.log('隐私设置', res);
-        if (res.needAuthorization) {
-          this.hideLoginDialog();
-          // 创建隐私协议弹窗
-          this.createPrivacyDialog();
-        } else {
-          this.privacyAuthorized = true;
-          wx.getSetting({
-            success: res => {
-              if (res.authSetting['scope.userInfo']) {
-                this.getUserProfileInfo();
-              } else {
-                this.hideLoginDialog();
-                this.showUserProfileButton();
-              }
-            }
-          });
-        }
-      }
-    });
+    // this.showLoginDialog();
+    // wx.getPrivacySetting({
+    //   success: res => {
+    //     console.log('隐私设置', res);
+    //     if (res.needAuthorization) {
+    //       this.hideLoginDialog();
+    //       // 创建隐私协议弹窗
+    //       this.createPrivacyDialog();
+    //     } else {
+    //       this.privacyAuthorized = true;
+    //       wx.getSetting({
+    //         success: res => {
+    //           if (res.authSetting['scope.userInfo']) {
+    //             this.getUserProfileInfo();
+    //           } else {
+    //             this.hideLoginDialog();
+    //             this.showUserProfileButton();
+    //           }
+    //         }
+    //       });
+    //     }
+    //   }
+    // });
   }
   
   /**
@@ -925,10 +925,10 @@ class GameStartUI {
     console.log('开始单人模式');
     
     // 确保已登录
-    if (!this.isLoggedIn) {
-      this.login();
-      return;
-    }
+    // if (!this.isLoggedIn) {
+    //   this.login();
+    //   return;
+    // }
     
     if (typeof this.options.onSinglePlayerStart === 'function') {
       this.hide();
@@ -1551,256 +1551,7 @@ class GameStartUI {
       }
     });
   }
-  
-  /**
-   * 处理触摸事件
-   * @param {number} x - 触摸X坐标
-   * @param {number} y - 触摸Y坐标
-   * @param {boolean} isDown - 是否按下
-   */
-  handleTouch(x, y, isDown) {
-    console.log('GameStartUI处理触摸：', x, y, isDown ? 'down' : 'up');
-    
-    // 只有在界面可见时才处理
-    if (!this.isVisible) return;
-    
-    // 如果隐私弹窗可见，只处理隐私弹窗的点击
-    if (this.privacyDialog && this.privacyDialog.visible) {
-      // 检查是否点击了同意按钮
-      if (this._checkPrivacyAgreeButtonHit(x, y)) {
-        if (isDown) {
-          this.agreeBtn._onPointerDown();
-        } else {
-          this.agreeBtn._onPointerUp();
-        }
-      }
-      return;
-    }
-    
-    // 如果登录失败弹窗可见
-    if (this.loginFailedDialog && this.loginFailedDialog.visible) {
-      // 检查是否点击了重新登录按钮
-      if (this._checkButtonHit(x, y, this.loginFailedDialog, this.retryLoginBtn)) {
-        if (isDown) {
-          this.retryLoginBtn._onPointerDown();
-        } else {
-          this.retryLoginBtn._onPointerUp();
-        }
-      }
-      return;
-    }
-    
-    // 如果多人模式弹窗可见
-    if (this.multiplayerOptionsDialog && this.multiplayerOptionsDialog.visible) {
-      // 检查是否点击了关闭按钮
-      if (this._checkButtonHit(x, y, this.multiplayerOptionsDialog, this.closeOptionsButton)) {
-        if (isDown) {
-          // 按下效果，可以稍微缩小按钮
-          this.closeOptionsButton.scale.set(0.9);
-        } else {
-          // 弹起效果，恢复按钮大小并触发点击
-          this.closeOptionsButton.scale.set(1.0);
-          this.hideMultiplayerOptionsDialog();
-        }
-        return; // 处理完关闭按钮点击后直接返回
-      }
-      
-      // 检查是否点击了在线匹配按钮
-      if (this._checkButtonHit(x, y, this.multiplayerOptionsDialog, this.onlineMatchBtn)) {
-        if (isDown) {
-          this.onlineMatchBtn._onPointerDown();
-        } else {
-          this.onlineMatchBtn._onPointerUp();
-        }
-      }
-      // 检查是否点击了创建房间按钮
-      else if (this._checkButtonHit(x, y, this.multiplayerOptionsDialog, this.createRoomBtn)) {
-        if (isDown) {
-          this.createRoomBtn._onPointerDown();
-        } else {
-          this.createRoomBtn._onPointerUp();
-        }
-      }
-      return;
-    }
-    
-    // 如果匹配弹窗可见
-    if (this.matchingDialog && this.matchingDialog.visible) {
-      // 检查是否点击了取消按钮
-      if (this._checkButtonHit(x, y, this.matchingDialog, this.cancelMatchBtn)) {
-        if (isDown) {
-          this.cancelMatchBtn._onPointerDown();
-        } else {
-          this.cancelMatchBtn._onPointerUp();
-        }
-      }
-      // 检查是否点击了再次匹配按钮
-      else if (this.retryMatchBtn.visible && this._checkButtonHit(x, y, this.matchingDialog, this.retryMatchBtn)) {
-        if (isDown) {
-          this.retryMatchBtn._onPointerDown();
-        } else {
-          this.retryMatchBtn._onPointerUp();
-        }
-      }
-      return;
-    }
-    
-    // 如果房间弹窗可见
-    if (this.roomDialog && this.roomDialog.visible) {
-      // 检查是否点击了返回按钮
-      if (this._checkButtonHit(x, y, this.roomDialog, this.backToOptionsBtn)) {
-        if (isDown) {
-          this.backToOptionsBtn._onPointerDown();
-        } else {
-          this.backToOptionsBtn._onPointerUp();
-        }
-      }
-      // 检查是否点击了邀请好友按钮
-      else if (this._checkButtonHit(x, y, this.roomDialog, this.inviteFriendBtn)) {
-        if (isDown) {
-          this.inviteFriendBtn._onPointerDown();
-        } else {
-          this.inviteFriendBtn._onPointerUp();
-        }
-      }
-      return;
-    }
-    
-    // 检查是否点击了主界面按钮
-    const hitButton = this._checkTouchHit(x, y);
-    
-    if (hitButton === 'single') {
-      if (isDown) {
-        this.singlePlayerBtn._onPointerDown();
-      } else {
-        this.singlePlayerBtn._onPointerUp();
-      }
-    } else if (hitButton === 'multi') {
-      if (isDown) {
-        this.multiPlayerBtn._onPointerDown();
-      } else {
-        this.multiPlayerBtn._onPointerUp();
-      }
-    }
-  }
-  
-  /**
-   * 通用检查按钮是否被点击
-   * @param {number} x - 触摸X坐标
-   * @param {number} y - 触摸Y坐标
-   * @param {PIXI.Container} dialogContainer - 弹窗容器
-   * @param {Button} button - 按钮对象
-   * @returns {boolean} 是否命中
-   * @private
-   */
-  _checkButtonHit(x, y, dialogContainer, button) {
-    // 计算按钮全局位置
-    const dialogPos = {
-      x: screen.width / 2 + dialogContainer.position.x,
-      y: screen.height / 2 + dialogContainer.position.y
-    };
-    
-    const btnPos = {
-      x: dialogPos.x + button.position.x,
-      y: dialogPos.y + button.position.y
-    };
-    
-    // 获取按钮的点击区域
-    const btnHitArea = button.hitArea;
-    
-    // 检查是否点击了按钮
-    return (
-      x >= btnPos.x + btnHitArea.x &&
-      x <= btnPos.x + btnHitArea.x + btnHitArea.width &&
-      y >= btnPos.y + btnHitArea.y &&
-      y <= btnPos.y + btnHitArea.y + btnHitArea.height
-    );
-  }
-  
-  /**
-   * 检查触摸是否命中按钮
-   * @param {number} x - 触摸X坐标
-   * @param {number} y - 触摸Y坐标
-   * @returns {string|null} 命中的按钮类型，'single'或'multi'，未命中则为null
-   * @private
-   */
-  _checkTouchHit(x, y) {
-    // 将全局坐标转换为按钮的本地坐标
-    const buttonContainerPos = {
-      x: screen.width / 2 + this.buttonsContainer.position.x,
-      y: screen.height / 2 + this.buttonsContainer.position.y
-    };
-    
-    // 计算单人按钮的位置和点击区域
-    const singleBtnPos = {
-      x: buttonContainerPos.x + this.singlePlayerBtn.position.x,
-      y: buttonContainerPos.y + this.singlePlayerBtn.position.y
-    };
-    
-    // 计算多人按钮的位置和点击区域
-    const multiBtnPos = {
-      x: buttonContainerPos.x + this.multiPlayerBtn.position.x,
-      y: buttonContainerPos.y + this.multiPlayerBtn.position.y
-    };
-    
-    // 获取按钮的点击区域大小(从hitArea)
-    const singleBtnHitArea = this.singlePlayerBtn.hitArea;
-    const multiBtnHitArea = this.multiPlayerBtn.hitArea;
-    
-    // 检查是否点击了单人按钮
-    if (
-      x >= singleBtnPos.x + singleBtnHitArea.x &&
-      x <= singleBtnPos.x + singleBtnHitArea.x + singleBtnHitArea.width &&
-      y >= singleBtnPos.y + singleBtnHitArea.y &&
-      y <= singleBtnPos.y + singleBtnHitArea.y + singleBtnHitArea.height
-    ) {
-      return 'single';
-    }
-    
-    // 检查是否点击了多人按钮
-    if (
-      x >= multiBtnPos.x + multiBtnHitArea.x &&
-      x <= multiBtnPos.x + multiBtnHitArea.x + multiBtnHitArea.width &&
-      y >= multiBtnPos.y + multiBtnHitArea.y &&
-      y <= multiBtnPos.y + multiBtnHitArea.y + multiBtnHitArea.height
-    ) {
-      return 'multi';
-    }
-    
-    return null;
-  }
-  
-  /**
-   * 检查隐私协议同意按钮是否被点击
-   * @param {number} x - 触摸X坐标
-   * @param {number} y - 触摸Y坐标
-   * @returns {boolean} 是否命中
-   * @private
-   */
-  _checkPrivacyAgreeButtonHit(x, y) {
-    // 计算按钮全局位置
-    const dialogPos = {
-      x: screen.width / 2 + this.privacyDialog.position.x,
-      y: screen.height / 2 + this.privacyDialog.position.y
-    };
-    
-    const btnPos = {
-      x: dialogPos.x + this.agreeBtn.position.x,
-      y: dialogPos.y + this.agreeBtn.position.y
-    };
-    
-    // 获取按钮的点击区域
-    const btnHitArea = this.agreeBtn.hitArea;
-    
-    // 检查是否点击了按钮
-    return (
-      x >= btnPos.x + btnHitArea.x &&
-      x <= btnPos.x + btnHitArea.x + btnHitArea.width &&
-      y >= btnPos.y + btnHitArea.y &&
-      y <= btnPos.y + btnHitArea.y + btnHitArea.height
-    );
-  }
-  
+
   /**
    * 显示游戏开始界面
    * @param {PIXI.Container} parent - 父容器
