@@ -24,8 +24,6 @@
     "@iro/wechat-adapter": "^1.2.5",
     "@pixi/filter-pixelate": "^5.1.1",
     "@pixi/unsafe-eval": "^6.5.10",
-    "@types/mongoose": "^5.11.97",
-    "axios": "^1.6.8",
     "dayjs": "^1.11.10",
     "mobx": "^6.12.3",
     "pixi-filters": "4.2.0",
