@@ -24,7 +24,9 @@
       "dom",
       "esnext",
     ],
-    "types": []
+    "types": [
+      "minigame-api-typings"
+    ]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules/**/*", "dist/**/*"]

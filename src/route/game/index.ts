@@ -219,7 +219,7 @@ function startSinglePlayerGame() {
             audioManager.playEffect('coin', 'assets/mp3/coin.mp3');
             // 触发短震动
             try {
-              wx.vibrateShort();
+              wx.vibrateShort({type: 'light'});
               console.log('触发短振动');
             } catch (error) {
               console.error('触发短振动失败:', error);

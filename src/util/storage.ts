@@ -83,8 +83,9 @@ export function getStorage<T = any>(key: string): Promise<T> {
   return new Promise((resolve, reject) => {
     wx.getStorage({
       key,
+      success: (res) => resolve(res.data as T),
       fail: () => reject()
-    }).then((res) => resolve(res.data as T));
+    });
   });
 }
 

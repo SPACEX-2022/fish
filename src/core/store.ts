@@ -2,7 +2,7 @@ import {action, autorun, observable} from 'mobx'
 
 export const mem = observable({
   /** 微信胶囊按钮尺寸信息 */
-  menuBtn: {} as wx.IRect,
+  menuBtn: {} as WechatMinigame.ClientRect,
   /** 画布尺寸信息 */
   screen: {w: 0, h: 0, rw: 0, rh: 0, dr: 1, rdr: 1},
   /** 第三方字体 */

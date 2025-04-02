@@ -48,6 +48,9 @@ importers:
       '@types/node':
         specifier: ^20.12.7
         version: 20.12.7
+      minigame-api-typings:
+        specifier: ^3.8.10
+        version: 3.8.10
       vite:
         specifier: ^5.2.10
         version: 5.4.12(@types/node@20.12.7)
@@ -982,6 +985,9 @@ packages:
   mime-types@2.1.35:
     resolution: {integrity: sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw==}
     engines: {node: '>= 0.6'}
+
+  minigame-api-typings@3.8.10:
+    resolution: {integrity: sha512-2JaDV2/eGffzOs/XYDA9sgyqBuYVZloqAdYuFZT56qz425v2eQ1zS6+xkrzxSuyejDnaC/R2ZHGLsk2o8k7BVQ==}
 
   mobx@6.12.3:
     resolution: {integrity: sha512-c8NKkO4R2lShkSXZ2Ongj1ycjugjzFFo/UswHBnS62y07DMcTc9Rvo03/3nRyszIvwPNljlkd4S828zIBv/piw==}
@@ -1928,6 +1934,8 @@ snapshots:
   mime-types@2.1.35:
     dependencies:
       mime-db: 1.52.0
+
+  minigame-api-typings@3.8.10: {}
 
   mobx@6.12.3: {}
 

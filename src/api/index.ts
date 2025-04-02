@@ -10,27 +10,11 @@ import { getStorage, getStorageSync } from '../util/storage';
  */
 
 /**
- * 微信小游戏请求参数类型
- */
-interface WxRequestOption {
-  url: string;
-  data?: string | object | ArrayBuffer;
-  header?: Record<string, string>;
-  timeout?: number;
-  method?: 'OPTIONS' | 'GET' | 'HEAD' | 'POST' | 'PUT' | 'DELETE' | 'TRACE' | 'CONNECT' | 'PATCH';
-  dataType?: string;
-  responseType?: 'text' | 'arraybuffer';
-  success?: (res: any) => void;
-  fail?: (res: any) => void;
-  complete?: (res: any) => void;
-}
-
-/**
  * 请求配置接口
  * 
  * 继承微信请求选项并添加额外的配置项
  */
-export interface RequestConfig extends Omit<WxRequestOption, 'success' | 'fail' | 'complete'> {
+export interface RequestConfig extends Omit<WechatMinigame.RequestOption, 'success' | 'fail' | 'complete'> {
   /** API基础URL */
   baseURL?: string;
   /** 是否显示加载提示 */
@@ -367,16 +351,6 @@ export class HttpClient {
       ...config,
       url,
       method: 'DELETE',
-      data,
-    });
-  }
-
-  // PATCH请求
-  patch<T = any>(url: string, data?: any, config?: Partial<RequestConfig>) {
-    return this.request<ResponseResult<T>>({
-      ...config,
-      url,
-      method: 'PATCH',
       data,
     });
   }

@@ -71,7 +71,7 @@ export function delay(t = 0, stoppable?: boolean): any {
 }
 
 export function getUserInfo(opts: Parameters<typeof wx.createUserInfoButton>[0]) {
-  return new Promise<wx.IUserInfo>(resolve => {
+  return new Promise(resolve => {
     const btn = wx.createUserInfoButton(opts)
 
     const handle: Parameters<typeof btn.onTap>[0] = (res) => {
