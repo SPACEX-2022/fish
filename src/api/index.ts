@@ -359,7 +359,7 @@ export class HttpClient {
 export const BASE_URL = import.meta.env.VITE_API_URL;
 
 export function getWsUrl(url: string) {
-  return BASE_URL.replace('http://', 'ws://').replace(/:\d+$/, '') + ':8080' + url;
+  return import.meta.env.VITE_WS_URL + url;
 }
 
 /**

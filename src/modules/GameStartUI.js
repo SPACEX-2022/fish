@@ -79,31 +79,31 @@ class GameStartUI {
     this.createConnectionStatusUI();
 
     // 在构造完成后自动开始登录流程
-    // this.autoLogin = true;
+    this.autoLogin = true;
 
-    // this.showLoginDialog();
-    // wx.getPrivacySetting({
-    //   success: res => {
-    //     console.log('隐私设置', res);
-    //     if (res.needAuthorization) {
-    //       this.hideLoginDialog();
-    //       // 创建隐私协议弹窗
-    //       this.createPrivacyDialog();
-    //     } else {
-    //       this.privacyAuthorized = true;
-    //       wx.getSetting({
-    //         success: res => {
-    //           if (res.authSetting['scope.userInfo']) {
-    //             this.getUserProfileInfo();
-    //           } else {
-    //             this.hideLoginDialog();
-    //             this.showUserProfileButton();
-    //           }
-    //         }
-    //       });
-    //     }
-    //   }
-    // });
+    this.showLoginDialog();
+    wx.getPrivacySetting({
+      success: res => {
+        console.log('隐私设置', res);
+        if (res.needAuthorization) {
+          this.hideLoginDialog();
+          // 创建隐私协议弹窗
+          this.createPrivacyDialog();
+        } else {
+          this.privacyAuthorized = true;
+          wx.getSetting({
+            success: res => {
+              if (res.authSetting['scope.userInfo']) {
+                this.getUserProfileInfo();
+              } else {
+                this.hideLoginDialog();
+                this.showUserProfileButton();
+              }
+            }
+          });
+        }
+      }
+    });
   }
   
   /**
