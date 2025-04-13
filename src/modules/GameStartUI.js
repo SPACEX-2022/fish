@@ -8,6 +8,7 @@ import { GameSocketConnection } from '../api/GameSocketConnection'; // 导入心
 import { getWsUrl } from '../api/index'; // 导入HTTP客户端
 import { getStorageSync, setStorageSync } from '../util/storage';
 import { defaultFontFamily } from '../util/constants';
+import { startMatching, cancelMatching, playerReady } from '../api/room'; // 导入房间API
 /**
  * 游戏开始界面
  * 提供游戏开始前的UI界面，包括标题、按钮等
@@ -1090,23 +1091,103 @@ class GameStartUI {
   onOnlineMatchClick() {
     console.log('在线匹配点击');
     
+    // 确保已登录
+    if (!this.isLoggedIn) {
+      this.login();
+      return;
+    }
+    
     // 隐藏选项弹窗
     this.hideMultiplayerOptionsDialog();
     
     // 显示匹配中弹窗
     this.showMatchingDialog();
+    
+    // 调用匹配接口
+    this.startMatching();
   }
   
   /**
-   * 创建匹配中弹窗
+   * 开始匹配
    */
-  createMatchingDialog() {
+  async startMatching() {
+    try {
+      // 开始监听匹配成功消息
+      this.listenForMatchSuccess();
+      
+      // 调用匹配接口
+      await startMatching();
+      console.log('匹配请求已发送');
+      
+      // 匹配请求发送成功，状态更新
+      this.matchingStatusText.text = "正在匹配中...";
+    } catch (error) {
+      console.error('匹配请求失败', error);
+      
+      // 更新UI状态
+      this.matchingStatusText.text = "匹配请求失败，请重试";
+      this.matchingCountdownText.text = "";
+      
+      // 停止倒计时
+      if (this.matchingCountdownTimer) {
+        clearInterval(this.matchingCountdownTimer);
+        this.matchingCountdownTimer = null;
+      }
+      
+      // 调整按钮位置，显示再次匹配按钮
+      this.cancelMatchBtn.position.set(-100, 80);
+      this.retryMatchBtn.visible = true;
+    }
+  }
+  
+  /**
+   * 监听匹配成功消息
+   */
+  listenForMatchSuccess() {
+    if (!this.gameSocketConnection) {
+      console.error('未建立WebSocket连接，无法监听匹配消息');
+      return;
+    }
+    
+    // 移除之前的监听器(避免重复)
+    this.gameSocketConnection.onMessage('match:success', this.handleMatchSuccess.bind(this));
+  }
+  
+  /**
+   * 处理匹配成功消息
+   * @param {Object} data - 匹配成功数据
+   */
+  handleMatchSuccess(data) {
+    console.log('匹配成功', data);
+    
+    // 停止倒计时
+    if (this.matchingCountdownTimer) {
+      clearInterval(this.matchingCountdownTimer);
+      this.matchingCountdownTimer = null;
+    }
+    
+    // 保存房间信息
+    this.matchedRoomData = {
+      roomId: data.roomId,
+      roomCode: data.roomCode,
+      readyTimeout: data.readyTimeout || 10,
+      players: data.players || []
+    };
+    
+    // 显示匹配成功弹窗
+    this.showMatchSuccessDialog();
+  }
+  
+  /**
+   * 创建匹配成功弹窗
+   */
+  createMatchSuccessDialog() {
     // 如果已经创建过，不重复创建
-    if (this.matchingDialog) return;
+    if (this.matchSuccessDialog) return;
     
     // 创建弹窗容器
-    this.matchingDialog = new PIXI.Container();
-    this.matchingDialog.zIndex = 200;
+    this.matchSuccessDialog = new PIXI.Container();
+    this.matchSuccessDialog.zIndex = 200;
     
     // 创建半透明背景
     const background = new PIXI.Graphics();
@@ -1118,72 +1199,224 @@ class GameStartUI {
     const panel = new PIXI.Graphics();
     panel.beginFill(0xFFFFFF);
     panel.lineStyle(2, 0x999999);
-    panel.drawRoundedRect(-200, -150, 400, 300, 10);
+    panel.drawRoundedRect(-240, -150, 480, 300, 10);
     panel.endFill();
     
     // 创建标题文本
-    const title = new PIXI.Text("匹配中", {
+    const title = new PIXI.Text("匹配成功", {
       fontFamily: defaultFontFamily,
-      fontSize: 20,
+      fontSize: 24,
       fontWeight: "bold",
       fill: 0x333333
     });
     title.anchor.set(0.5, 0);
     title.position.set(0, -120);
     
-    // 创建状态文本
-    this.matchingStatusText = new PIXI.Text("正在匹配中...", {
+    // 创建房间号文本
+    this.roomCodeText = new PIXI.Text("房间号: --", {
       fontFamily: defaultFontFamily,
       fontSize: 16,
       fill: 0x333333
     });
-    this.matchingStatusText.anchor.set(0.5, 0);
-    this.matchingStatusText.position.set(0, -50);
+    this.roomCodeText.anchor.set(0.5, 0);
+    this.roomCodeText.position.set(0, -70);
     
-    // 创建倒计时文本
-    this.matchingCountdownText = new PIXI.Text("60", {
+    // 创建玩家容器
+    this.matchedPlayersContainer = new PIXI.Container();
+    this.matchedPlayersContainer.position.set(0, -20);
+    
+    // 创建准备倒计时文本
+    this.readyCountdownText = new PIXI.Text("准备倒计时: 10", {
       fontFamily: defaultFontFamily,
-      fontSize: 32,
+      fontSize: 18,
       fontWeight: "bold",
-      fill: 0x333333
+      fill: 0xFF3333
     });
-    this.matchingCountdownText.anchor.set(0.5, 0);
-    this.matchingCountdownText.position.set(0, 0);
+    this.readyCountdownText.anchor.set(0.5, 0);
+    this.readyCountdownText.position.set(0, 80);
     
-    // 创建取消按钮
-    this.cancelMatchBtn = new Button({
-      text: '取消',
+    // 创建确认按钮
+    this.readyBtn = new Button({
+      text: '准备',
       scale: 0.7,
       onClick: () => {
-        this.onCancelMatchClick();
+        this.onPlayerReady();
       }
     });
-    this.cancelMatchBtn.position.set(0, 80);
-    
-    // 创建再次匹配按钮（默认隐藏）
-    this.retryMatchBtn = new Button({
-      text: '再次匹配',
-      scale: 0.7,
-      onClick: () => {
-        this.onRetryMatchClick();
-      }
-    });
-    this.retryMatchBtn.position.set(100, 80);
-    this.retryMatchBtn.visible = false;
+    this.readyBtn.position.set(0, 120);
     
     // 添加到弹窗容器
-    this.matchingDialog.addChild(
+    this.matchSuccessDialog.addChild(
       background, 
       panel, 
       title, 
-      this.matchingStatusText, 
-      this.matchingCountdownText,
-      this.cancelMatchBtn,
-      this.retryMatchBtn
+      this.roomCodeText,
+      this.matchedPlayersContainer,
+      this.readyCountdownText,
+      this.readyBtn
     );
     
     // 默认隐藏
-    this.matchingDialog.visible = false;
+    this.matchSuccessDialog.visible = false;
+  }
+  
+  /**
+   * 显示匹配成功弹窗
+   */
+  showMatchSuccessDialog() {
+    // 创建弹窗(如果未创建)
+    this.createMatchSuccessDialog();
+    
+    // 隐藏匹配中弹窗
+    this.hideMatchingDialog();
+    
+    if (!this.matchSuccessDialog.parent && this.container.parent) {
+      this.container.parent.addChild(this.matchSuccessDialog);
+    }
+    
+    // 更新房间信息
+    if (this.matchedRoomData) {
+      this.roomCodeText.text = `房间号: ${this.matchedRoomData.roomCode}`;
+      
+      // 清空并重新创建玩家列表
+      this.matchedPlayersContainer.removeChildren();
+      
+      // 显示玩家信息
+      if (this.matchedRoomData.players && this.matchedRoomData.players.length > 0) {
+        const playerCount = this.matchedRoomData.players.length;
+        
+        this.matchedRoomData.players.forEach((player, index) => {
+          const playerInfo = this.createPlayerInfo(player, index, playerCount);
+          this.matchedPlayersContainer.addChild(playerInfo);
+        });
+      }
+    }
+    
+    // 设置位置
+    this.matchSuccessDialog.position.set(screen.width / 2, screen.height / 2);
+    
+    // 添加动画效果
+    this.applyDialogAnimation(this.matchSuccessDialog);
+    
+    // 显示弹窗
+    this.matchSuccessDialog.visible = true;
+    
+    // 开始准备倒计时
+    this.startReadyCountdown();
+  }
+  
+  /**
+   * 创建玩家信息显示
+   * @param {Object} player - 玩家信息
+   * @param {number} index - 索引
+   * @param {number} total - 总数
+   * @returns {PIXI.Container} 玩家信息容器
+   */
+  createPlayerInfo(player, index, total) {
+    const container = new PIXI.Container();
+    
+    // 计算x偏移，使玩家居中排列
+    const spacing = 100;
+    const totalWidth = (total - 1) * spacing;
+    const startX = -totalWidth / 2;
+    container.position.set(startX + index * spacing, 0);
+    
+    // 创建头像底框
+    const avatarBg = new PIXI.Graphics();
+    avatarBg.beginFill(0xEEEEEE);
+    avatarBg.lineStyle(2, 0x999999);
+    avatarBg.drawCircle(0, 0, 30);
+    avatarBg.endFill();
+    
+    // 创建头像
+    const avatar = PIXI.Sprite.from(player.avatarUrl);
+    avatar.width = 56;
+    avatar.height = 56;
+    avatar.anchor.set(0.5);
+    
+    // 创建玩家名称
+    const nameText = new PIXI.Text(player.nickname, {
+      fontFamily: defaultFontFamily,
+      fontSize: 14,
+      fill: 0x333333,
+      wordWrap: true,
+      wordWrapWidth: 80
+    });
+    nameText.anchor.set(0.5, 0);
+    nameText.position.set(0, 40);
+    
+    // 添加到容器
+    container.addChild(avatarBg, avatar, nameText);
+    
+    return container;
+  }
+  
+  /**
+   * 开始准备倒计时
+   */
+  startReadyCountdown() {
+    // 清除之前的定时器
+    if (this.readyCountdownTimer) {
+      clearInterval(this.readyCountdownTimer);
+    }
+    
+    let countdown = this.matchedRoomData?.readyTimeout || 10;
+    this.readyCountdownText.text = `准备倒计时: ${countdown}`;
+    
+    this.readyCountdownTimer = setInterval(() => {
+      countdown--;
+      this.readyCountdownText.text = `准备倒计时: ${countdown}`;
+      
+      if (countdown <= 0) {
+        clearInterval(this.readyCountdownTimer);
+        this.onReadyTimeout();
+      }
+    }, 1000);
+  }
+  
+  /**
+   * 准备超时处理
+   */
+  onReadyTimeout() {
+    console.log('准备超时');
+    
+    // 更新UI状态
+    this.readyCountdownText.text = `准备时间已结束`;
+    
+    // 弹出提示
+    if (this.container.parent) {
+      showToast({
+        text: '准备时间已结束，房间已关闭',
+        type: 'warning',
+        duration: 2000,
+        parent: this.container.parent
+      });
+    }
+    
+    // 延迟返回多人模式选项弹窗
+    setTimeout(() => {
+      this.hideMatchSuccessDialog();
+      this.showMultiplayerOptionsDialog();
+    }, 2000);
+  }
+  
+  /**
+   * 处理游戏开始消息
+   * @param {Object} data - 游戏开始数据
+   */
+  handleGameStart(data) {
+    console.log('游戏开始', data);
+    
+    // 隐藏匹配成功弹窗
+    this.hideMatchSuccessDialog();
+    
+    // 隐藏游戏开始UI
+    this.hide();
+    
+    // 调用多人模式开始回调
+    if (typeof this.options.onMultiPlayerStart === 'function') {
+      this.options.onMultiPlayerStart(data);
+    }
   }
   
   /**
@@ -1255,25 +1488,25 @@ class GameStartUI {
   }
   
   /**
-   * 隐藏匹配中弹窗并停止倒计时
-   */
-  hideMatchingDialog() {
-    if (!this.matchingDialog) return;
-    
-    // 停止倒计时
-    if (this.matchingCountdownTimer) {
-      clearInterval(this.matchingCountdownTimer);
-      this.matchingCountdownTimer = null;
-    }
-    
-    this.matchingDialog.visible = false;
-  }
-  
-  /**
    * 取消匹配按钮点击处理
    */
   onCancelMatchClick() {
     console.log('取消匹配');
+    
+    // 调用取消匹配接口
+    try {
+      // 通过WebSocket发送取消匹配消息
+      if (this.gameSocketConnection) {
+        this.gameSocketConnection.sendMessage('match:cancel');
+      }
+      
+      // 通过HTTP API取消匹配
+      cancelMatching().catch(err => {
+        console.error('取消匹配请求失败', err);
+      });
+    } catch (error) {
+      console.error('发送取消匹配消息失败', error);
+    }
     
     // 停止倒计时并隐藏弹窗
     this.hideMatchingDialog();
@@ -1290,6 +1523,9 @@ class GameStartUI {
     
     // 重新开始匹配
     this.showMatchingDialog();
+    
+    // 调用匹配接口
+    this.startMatching();
   }
   
   /**
@@ -1601,6 +1837,181 @@ class GameStartUI {
         });
       }
     });
+  }
+
+  /**
+   * 创建匹配中弹窗
+   */
+  createMatchingDialog() {
+    // 如果已经创建过，不重复创建
+    if (this.matchingDialog) return;
+    
+    // 创建弹窗容器
+    this.matchingDialog = new PIXI.Container();
+    this.matchingDialog.zIndex = 200;
+    
+    // 创建半透明背景
+    const background = new PIXI.Graphics();
+    background.beginFill(0x000000, 0.7);
+    background.drawRect(-screen.width/2, -screen.height/2, screen.width, screen.height);
+    background.endFill();
+    
+    // 创建弹窗面板
+    const panel = new PIXI.Graphics();
+    panel.beginFill(0xFFFFFF);
+    panel.lineStyle(2, 0x999999);
+    panel.drawRoundedRect(-200, -150, 400, 300, 10);
+    panel.endFill();
+    
+    // 创建标题文本
+    const title = new PIXI.Text("匹配中", {
+      fontFamily: defaultFontFamily,
+      fontSize: 20,
+      fontWeight: "bold",
+      fill: 0x333333
+    });
+    title.anchor.set(0.5, 0);
+    title.position.set(0, -120);
+    
+    // 创建状态文本
+    this.matchingStatusText = new PIXI.Text("正在匹配中...", {
+      fontFamily: defaultFontFamily,
+      fontSize: 16,
+      fill: 0x333333
+    });
+    this.matchingStatusText.anchor.set(0.5, 0);
+    this.matchingStatusText.position.set(0, -50);
+    
+    // 创建倒计时文本
+    this.matchingCountdownText = new PIXI.Text("60", {
+      fontFamily: defaultFontFamily,
+      fontSize: 32,
+      fontWeight: "bold",
+      fill: 0x333333
+    });
+    this.matchingCountdownText.anchor.set(0.5, 0);
+    this.matchingCountdownText.position.set(0, 0);
+    
+    // 创建取消按钮
+    this.cancelMatchBtn = new Button({
+      text: '取消',
+      scale: 0.7,
+      onClick: () => {
+        this.onCancelMatchClick();
+      }
+    });
+    this.cancelMatchBtn.position.set(0, 80);
+    
+    // 创建再次匹配按钮（默认隐藏）
+    this.retryMatchBtn = new Button({
+      text: '再次匹配',
+      scale: 0.7,
+      onClick: () => {
+        this.onRetryMatchClick();
+      }
+    });
+    this.retryMatchBtn.position.set(100, 80);
+    this.retryMatchBtn.visible = false;
+    
+    // 添加到弹窗容器
+    this.matchingDialog.addChild(
+      background, 
+      panel, 
+      title, 
+      this.matchingStatusText, 
+      this.matchingCountdownText,
+      this.cancelMatchBtn,
+      this.retryMatchBtn
+    );
+    
+    // 默认隐藏
+    this.matchingDialog.visible = false;
+  }
+  
+  /**
+   * 隐藏匹配中弹窗并停止倒计时
+   */
+  hideMatchingDialog() {
+    if (!this.matchingDialog) return;
+    
+    // 停止倒计时
+    if (this.matchingCountdownTimer) {
+      clearInterval(this.matchingCountdownTimer);
+      this.matchingCountdownTimer = null;
+    }
+    
+    this.matchingDialog.visible = false;
+  }
+
+  /**
+   * 隐藏匹配成功弹窗
+   */
+  hideMatchSuccessDialog() {
+    if (!this.matchSuccessDialog) return;
+    
+    // 停止倒计时
+    if (this.readyCountdownTimer) {
+      clearInterval(this.readyCountdownTimer);
+      this.readyCountdownTimer = null;
+    }
+    
+    this.matchSuccessDialog.visible = false;
+  }
+
+  /**
+   * 准备按钮点击处理
+   */
+  onPlayerReady() {
+    console.log('玩家准备');
+    
+    if (this.matchedRoomData && this.matchedRoomData.roomId) {
+      // 发送准备消息
+      try {
+        // 通过WebSocket发送准备消息
+        if (this.gameSocketConnection) {
+          this.gameSocketConnection.sendMessage('player:ready', {
+            roomId: this.matchedRoomData.roomId
+          });
+          
+          // 同时通过HTTP API发送准备消息
+          playerReady(this.matchedRoomData.roomId).catch(err => {
+            console.error('HTTP准备消息发送失败', err);
+          });
+          
+          // 禁用准备按钮
+          this.readyBtn.interactive = false;
+          this.readyBtn.buttonMode = false;
+          this.readyBtn.alpha = 0.5;
+          
+          // 更新按钮文本
+          this.readyBtn.setText('已准备');
+          
+          // 显示提示
+          if (this.container.parent) {
+            showToast({
+              text: '已准备，等待其他玩家',
+              type: 'success',
+              duration: 2000,
+              parent: this.container.parent
+            });
+          }
+          
+          // 监听游戏开始消息
+          this.gameSocketConnection.onMessage('game:start', this.handleGameStart.bind(this));
+        }
+      } catch (error) {
+        console.error('发送准备消息失败', error);
+        
+        if (this.container.parent) {
+          showToast({
+            text: '准备失败，请重试',
+            type: 'error',
+            duration: 2000,
+            parent: this.container.parent
+          });
+        }
+      }
+    }
   }
 }
 
