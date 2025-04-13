@@ -3,137 +3,82 @@ import http from './index';
 /**
  * 房间API模块
  * 
- * 提供多人游戏房间相关的API接口，包括创建房间、加入房间、获取房间列表等功能。
+ * 提供房间相关操作的API，包括匹配玩家、取消匹配、准备等功能
  * 
  * @module api/room
  */
 
-// 房间类型
-export interface Room {
-  id: string;
-  code: string;
-  name: string;
-  owner: {
-    id: string;
-    nickname: string;
-    avatarUrl: string;
-  };
-  players: {
-    id: string;
-    nickname: string;
-    avatarUrl: string;
-    isReady: boolean;
-    score?: number;
-    isReadyForNextGame?: boolean;
-  }[];
-  status: 'waiting' | 'countdown' | 'playing' | 'ended';
-  isPrivate: boolean;
-  maxPlayers: number;
-  currentPlayers: number;
-  gameSettings: {
-    duration: number;
-    fishCount: number;
-    specialEvents: boolean;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
-
-// 创建房间参数
-export interface CreateRoomParams {
-  name: string;
-  isPrivate: boolean;
-  maxPlayers: number;
-  gameSettings: {
-    duration: number;
-    fishCount: number;
-    specialEvents: boolean;
-  };
-}
-
-// 加入房间参数
-export interface JoinRoomParams {
-  roomId?: string;
-  code?: string;
-}
-
 /**
- * 获取公共房间列表
- * @returns 房间列表
+ * 房间信息接口
  */
-export async function getPublicRooms(): Promise<Room[]> {
-  return http.get<Room[]>('/rooms/public');
+export interface RoomInfo {
+  roomId: string;
+  roomCode: string;
+  players: PlayerInfo[];
+  readyTimeout: number;
+  status: string;
 }
 
 /**
- * 根据ID获取房间信息
+ * 玩家信息接口
+ */
+export interface PlayerInfo {
+  userId: string;
+  nickname: string;
+  avatarUrl: string;
+  isReady?: boolean;
+}
+
+/**
+ * 开始匹配玩家
+ * 将当前玩家加入匹配队列
+ * @returns 匹配请求结果
+ */
+export async function startMatching() {
+  return http.post('/rooms/match');
+}
+
+/**
+ * 取消匹配
+ * 将当前玩家从匹配队列中移除
+ * @returns 取消匹配结果
+ */
+export async function cancelMatching() {
+  return http.post('/rooms/cancel-match');
+}
+
+/**
+ * 玩家准备
+ * 在匹配成功后，玩家准备开始游戏
+ * @param roomId 房间ID
+ * @returns 准备结果
+ */
+export async function playerReady(roomId: string) {
+  return http.post(`/rooms/${roomId}/ready`);
+}
+
+/**
+ * 获取房间信息
  * @param roomId 房间ID
  * @returns 房间信息
  */
-export async function getRoomById(roomId: string): Promise<Room> {
-  return http.get<Room>(`/rooms/${roomId}`);
+export async function getRoomInfo(roomId: string): Promise<RoomInfo> {
+  return http.get(`/rooms/${roomId}`);
 }
 
 /**
- * 根据邀请码获取房间信息
- * @param code 邀请码
- * @returns 房间信息
+ * 加入指定房间
+ * @param roomCode 房间代码
+ * @returns 加入结果
  */
-export async function getRoomByCode(code: string): Promise<Room> {
-  return http.get<Room>(`/rooms/code/${code}`);
+export async function joinRoom(roomCode: string) {
+  return http.post('/rooms/join', { roomCode });
 }
 
 /**
  * 创建房间
- * @param params 创建房间参数
- * @returns 创建的房间
+ * @returns 创建结果
  */
-export async function createRoom(params: CreateRoomParams): Promise<Room> {
-  return http.post<Room>('/rooms', params);
+export async function createRoom() {
+  return http.post('/rooms/create');
 }
-
-/**
- * 加入房间
- * @param params 加入房间参数
- * @returns 加入的房间
- */
-export async function joinRoom(params: JoinRoomParams): Promise<Room> {
-  return http.post<Room>('/rooms/join', params);
-}
-
-/**
- * 离开房间
- * @param roomId 房间ID
- * @returns 操作结果
- */
-export async function leaveRoom(roomId: string): Promise<Room | { success: boolean; message: string }> {
-  return http.post<Room | { success: boolean; message: string }>(`/rooms/${roomId}/leave`);
-}
-
-/**
- * 设置准备状态
- * @param roomId 房间ID
- * @param isReady 是否准备
- * @returns 更新后的房间
- */
-export async function setReady(roomId: string, isReady: boolean): Promise<Room> {
-  return http.post<Room>(`/rooms/${roomId}/ready`, { isReady });
-}
-
-/**
- * 开始游戏
- * @param roomId 房间ID
- * @returns 开始游戏后的房间
- */
-export async function startGame(roomId: string): Promise<Room> {
-  return http.post<Room>(`/rooms/${roomId}/start`);
-}
-
-/**
- * 准备下一局
- * @param roomId 房间ID
- * @returns 更新后的房间
- */
-export async function readyForNextGame(roomId: string): Promise<Room> {
-  return http.post<Room>(`/rooms/${roomId}/ready-next`);
-} 

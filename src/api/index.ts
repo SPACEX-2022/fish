@@ -367,7 +367,6 @@ export function getWsUrl(url: string) {
  */
 const http = new HttpClient({
   baseURL: BASE_URL + '/api', // 本地环境
-  // baseURL: 'https://www.joy-stream.asia/api', // 生产环境
   retry: 1,
   retryDelay: 1500
 });
